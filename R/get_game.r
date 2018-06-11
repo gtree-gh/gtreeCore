@@ -4,15 +4,28 @@ get.xs = function(xs = app[["xs"]],app = if ("package:shinyEvents" %in% search()
 	xs
 }
 
+#' Get the gtree project directory
+#'
+#' By default the current working directory
+#' but the gtree GUI can set a different folder
+#' @export
 get.project.dir = function(xs=get.xs()) {
 	if (!is.null(xs$project.dir)) return(xs$project.dir)
 	getwd()
 }
 
+#' Get the gtree games directory
+#'
+#' The subdirectory "games" under get.project.dir()
+#' @export
 get.games.dir = function(project.dir = get.project.dir()) {
 	file.path(project.dir,"games")
 }
 
+#' Get the gtree jobs directory
+#'
+#' The subdirectory "jobs" under get.project.dir()
+#' @export
 get.jobs.dir = function(project.dir = get.project.dir()) {
 	file.path(project.dir,"jobs")
 }
@@ -34,7 +47,10 @@ get.pages.dir = function(gameId, project.dir = get.project.dir()) {
 	file.path(project.dir,"games",gameId,"pages")
 }
 
-
+#' Create a directory structure for a new game
+#'
+#' includes the subdirectories eq, gambit and pages
+#' @export
 make.game.dir = function(gameId, games.dir = file.path(project.dir,"games"), project.dir=get.project.dir()) {
 	if (length(gameId)!=1) return()
 	if (nchar(gameId)==0) return()
@@ -54,6 +70,10 @@ get.jg.hash = function(jg.hash=NULL, jg=NULL, rg=NULL,vg=NULL, tg=NULL) {
 	hash
 }
 
+#' Get a game in jg format by its gameId
+#'
+#' Looks in the current project directory by default
+#' and parses the json file
 get.jg = function(gameId,json.file = paste0(game.dir,"/",gameId,".json"), game.dir=file.path(games.dir,gameId), games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), jg=NULL) {
 	restore.point("get.jg")
 	if (!is.null(jg)) return(jg)
@@ -63,6 +83,10 @@ get.jg = function(gameId,json.file = paste0(game.dir,"/",gameId,".json"), game.d
 	content$game
 }
 
+#' Get a game in rg format by its gameId
+#'
+#' If the json file has not changed return old .rg file
+#' otherwise generate new rg file from json source
 get.rg = function(gameId = jg$gameId, jg.hash = get.jg.hash(jg=jg),jg=NULL,rg=NULL, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), save.new = TRUE) {
 	if (!is.null(rg)) return(rg)
 	restore.point("get.rg")
@@ -90,6 +114,11 @@ get.rg = function(gameId = jg$gameId, jg.hash = get.jg.hash(jg=jg),jg=NULL,rg=NU
 	rg
 }
 
+#' Get a game in vg format by its gameId
+#'
+#' If the json file has not use exsisting .rg file to extract
+#' the vg format.
+#' Otherwise first generate new rg files from json source
 get.vg = function(variant=1, gameId = first.non.null(jg$gameId,rg$gameId), jg.hash = get.jg.hash(jg=jg, rg=rg),jg=NULL,rg=NULL, vg=NULL, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), save.new = FALSE, always.new=FALSE) {
 	if (!is.null(vg)) return(vg)
 	restore.point("get.vg")
@@ -121,6 +150,10 @@ get.vg = function(variant=1, gameId = first.non.null(jg$gameId,rg$gameId), jg.ha
 	vg
 }
 
+#' Get a game in tg format by its gameId
+#'
+#' If the json file has not changed return old .tg file
+#' otherwise generate new rg and tg files from json source
 get.tg = function(variant=first.non.null(vg$variant,1), gameId = first.non.null(vg$gameId,jg$gameId,rg$gameId), jg.hash = get.jg.hash(jg=jg, rg=rg,vg=vg),jg=NULL,rg=NULL, vg=NULL, tg=NULL, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), save.new = TRUE,branching.limit = 10000,msg.fun=NULL, never.load = FALSE) {
 	if (!is.null(tg)) return(tg)
 	restore.point("get.tg")
@@ -185,6 +218,10 @@ save.tg = function(tg, games.dir = get.games.dir(project.dir), project.dir = get
 	saveRDS(tg, file)
 }
 
+#' Compute or return previously computed equilibria
+#'
+#' Uses cached equilibria if json file of the game has not
+#' changed. Otherwise solve new equilibrium via gambit.eq.solve
 get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.eq.dir(tg$gameId,project.dir), efg.dir = get.efg.dir(tg$gameId, project.dir), project.dir = get.project.dir(), save.new = TRUE, solvemode=NULL, solver=NULL, only.load=FALSE,...) {
 	restore.point("get.eq")
 	if (!is.null(util.funs))
@@ -201,7 +238,6 @@ get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.e
 	}
 
 	if (only.load) return(NULL)
-
 
 	# create efg file
 	tg.to.efg(tg=tg, path=efg.dir)
