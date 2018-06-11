@@ -1,0 +1,22 @@
+Package: gtreeCore
+Type: Package
+Title: gtree core functions to parse and convert game formats and solve for equilibria 
+Version: 0.0.1
+Date: 2018-06-11
+Author: Sebastian Kranz
+Maintainer: Sebastian Kranz <sebastian.kranz@uni-ulm.de>
+Description:
+  Core functions to parse and convert game formats and solve for equilibria.
+  For the game theoretic analysis the json specification jg
+  is transformed into Gambit efg format and the Gambit
+  solvers are used to compute equilibria.
+  (see http://www.gambit-project.org/)
+License: GPL >= 2.0
+Depends:
+  restorepoint,stringtools, yaml,
+  data.table,dplyr, dplyrExtras, 
+  codeUtils, tidyr, digest,
+  sys, lubridate, jsonlite
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

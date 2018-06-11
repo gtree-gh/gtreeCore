@@ -1,0 +1,91 @@
+{"game": {
+    "gameId": "UltimatumGame",
+    "gameInfo": {
+        "label": "",
+        "tags": "",
+        "descr": "",
+        "articles": "",
+        "variantOf": ""
+    },
+    "varpar": [
+        [
+            "variants<U+2193> params<U+2192>",
+            "numPlayers",
+            "cake",
+            "descr"
+        ],
+        [
+            "base",
+            "2",
+            "10",
+            "The base variant"
+        ]
+    ],
+    "stages": [
+        {
+            "name": "offerStage",
+            "descr": "",
+            "player": "1",
+            "condition": "",
+            "observe": "",
+            "nature": [],
+            "compute": [],
+            "actions": [
+                {
+                    "name": "offer",
+                    "set": "=0:cake",
+                    "strategyMethodDomain": "",
+                    "labels": ""
+                }
+            ],
+            "special": {
+                "beliefs": [],
+                "freetext": []
+            }
+        },
+        {
+            "name": "acceptStage",
+            "descr": "",
+            "player": "2",
+            "condition": "",
+            "observe": "offer",
+            "nature": [],
+            "compute": [],
+            "actions": [
+                {
+                    "name": "accept",
+                    "set": "[0,1]",
+                    "strategyMethodDomain": "",
+                    "labels": "[reject, accept]"
+                }
+            ],
+            "special": {
+                "beliefs": [],
+                "freetext": []
+            }
+        },
+        {
+            "name": "resultsStage",
+            "descr": "",
+            "player": "[1,2]",
+            "condition": "",
+            "observe": "[offer, accept,payoff_1,payoff_2]",
+            "nature": [],
+            "compute": [
+                {
+                    "name": "payoff_1",
+                    "formula": "=(cake-offer)*accept"
+                },
+                {
+                    "name": "payoff_2",
+                    "formula": "=offer*accept"
+                }
+            ],
+            "actions": [],
+            "special": {
+                "beliefs": [],
+                "freetext": []
+            }
+        }
+    ]
+}}
