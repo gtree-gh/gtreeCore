@@ -10,13 +10,15 @@ payoffUtil = function(player=1,n=NULL) {
 
 
 # envyUtil:
-#   descr: Fehr-Schmidt inequality aversion without guilt but envy only. 
+#   descr: Fehr-Schmidt inequality aversion without guilt but envy only.
 #   alpha:
 #     descr: the degree of envy
 #     default: 0.5
 
 ineqAvUtil = function(player = 1,alpha=0.75,beta=0.5,n=2) {
   restore.point("ineqAvUtil")
+  if (isTRUE(beta==0)) return(envyUtil(player,alpha,n))
+
   np = length(player)
   util =  vector("character",np)
   counter = 1
@@ -40,7 +42,7 @@ ineqAvUtil = function(player = 1,alpha=0.75,beta=0.5,n=2) {
 }
 
 # envyUtil:
-#   descr: Fehr-Schmidt inequality aversion without guilt but envy only. 
+#   descr: Fehr-Schmidt inequality aversion without guilt but envy only.
 #   alpha:
 #     descr: the degree of envy
 #     default: 0.5
@@ -61,9 +63,9 @@ envyUtil = function(player = 1,alpha=0.5,n=2) {
 }
 example.get.envy.util = function() {
   envyUtil(alpha=0.5,n=3)
-  
+
   util =uniform.loss.aversion.util(start=1,end=3)
-  expr = parse(text=util[1]) 
+  expr = parse(text=util[1])
   dp = 0.1
   payoff_1 = seq(0,5,by=dp)
   u = eval(expr)
@@ -71,30 +73,41 @@ example.get.envy.util = function() {
   plot(payoff_1[-1],diff(u)/dp)
 }
 
-# Loss aversion utility with a continuous multiple reference point that 
+example.unifLossAvUtil = function() {
+  util = parse(text=unifLossAvUtil(rmin=0, rmax=1, lambda=4))
+  payoff_1 = seq(-1,2,length=401)
+
+  u = eval(parse(text=util),list(payoff_1=payoff_1))
+
+  library(ggplot2)
+  ggplot2::qplot(x=payoff_1, y=u,,xlab="Payoff",ylab="Utility") + theme_bw()
+}
+
+# Loss aversion utility with a continuous multiple reference point that
 # is uniformely distributed between start and end. Normalized such that material payoffs of 0 remain 0
 unifLossAvUtil = function(player=1,rmin=0,rmax=1,lambda=2,n=NULL) {
 	restore.point("unifLossAvUtil")
-  start = rmin; end = rmax
+  start = paste0("(",rmin,")");
+  end = paste0("(",rmax,")");
   util = sapply(player,function(i) {
     x = paste0("payoff_",i)
-    
+
     if (is.numeric(start) & is.numeric(end)) {
     	u.start = ((lambda-1)*start^2)/(2*(end-start))+lambda*start
     	u.end = lambda*end-((lambda-1)*(end^2/2-end*start))/(end-start)
     	code.start = ""
     } else {
     	code.start = paste0(
-    		".start = ", start,";\n .end = ",end,";\n" 
+    		".start = ", start,";\n .end = ",end,";\n"
     	)
   		start = ".start"
   		end = ".end"
-  
+
     	u.start = paste0("((",lambda,"-1)*",start,"^2)/(2*(",end,"-",start,"))+",lambda,"*",start)
     	u.end = paste0(lambda,"*",end,"-((",lambda,"-1)*(",end,"^2/2-",end,"*",start,"))/(",end,"-",start,")")
     }
-   
-    
+
+
     code = paste0("{",code.start,"\n
   ifelse(",x,">",end,",",u.end,"+(",x,"-",end,"),
     ifelse(",x,"<",start,",",u.start,"-",lambda,"*(",start,"-",x,"),
@@ -102,25 +115,25 @@ unifLossAvUtil = function(player=1,rmin=0,rmax=1,lambda=2,n=NULL) {
     )
   )}")
   })
-  
-  if (is.character(start)) {
+
+  if (is.character(rmin)) {
    	lab = paste0("unifLossAv_lambda",lambda)
   } else {
-  	lab = paste0("unifLossAv_start",start,"_end",end,"_lambda",lambda)
+  	lab = paste0("unifLossAv_start",rmin,"_end",rmax,"_lambda",lambda)
   }
   names(util)=rep(lab,length(player))
   util = replace.payoff_i.in.util(util, players=player)
   util
 }
 
-# Loss aversion utility with a continuous multiple reference point that 
+# Loss aversion utility with a single reference point that
 # is uniformely distributed between start and end. Normalized such that material payoffs of 0 remain 0
 lossAvUtil = function(player=1,r,lambda=2,n=NULL) {
 	restore.point("lossAvUtil")
   r.str = paste0("c(",paste0(r, collapse=","),")")
   x = paste0("payoff_",player)
   util = paste0("loss.aversion.util(",x,",r=",r.str,",lambda=",lambda,")")
-  
+
   lab = paste0("lossAv_r",r,"_lambda",lambda)
   names(util)=rep(lab,length(player))
   util = replace.payoff_i.in.util(util, players=player)
@@ -129,35 +142,35 @@ lossAvUtil = function(player=1,r,lambda=2,n=NULL) {
 
 
 loss.aversion.util = function(payoffs,r,lambda=2) {
-  restore.point("loss.aversion.util.fun") 
+  restore.point("loss.aversion.util.fun")
   x = payoffs
   if (length(r)==1) { # single reference point
-    u = pmax(x-r,0) - lambda*pmax(r-x,0)     
+    u = pmax(x-r,0) - lambda*pmax(r-x,0)
     return(u)
   } else { # multiple reference points
     xr = expand.grid(x,r)
-    uv = pmax(xg-rg,0) - lambda*pmax(rg-xg,0)  
+    uv = pmax(xg-rg,0) - lambda*pmax(rg-xg,0)
     um = matrix(uv,NROW(x),NROW(r))
     u = apply(um,1,mean)
-    return(u)  
-  } 
+    return(u)
+  }
 
 }
 
 
 loss.aversion.util.fun = function(x,r,lambda=2,n=2) {
-  restore.point("loss.aversion.util.fun") 
-  
+  restore.point("loss.aversion.util.fun")
+
   xr = expand.grid(x,r)
   xg = xr[,1]
   rg = xr[,2]
-  
+
   #matrix(rg,NROW(x),NROW(r))
-  uv = pmax(xg-rg,0) - lambda*pmax(rg-xg,0)  
+  uv = pmax(xg-rg,0) - lambda*pmax(rg-xg,0)
   um = matrix(uv,NROW(x),NROW(r))
   u = apply(um,1,mean)
-  return(u)  
-  
+  return(u)
+
 }
 
 replace.payoff_i.in.util = function(utils.str, players=seq_len(utils.str)) {
@@ -178,11 +191,25 @@ examples.loss.aversion.util.fun = function() {
   abline(a=0,b=1,col="red")
 }
 
+examples.OwnSumMin = function() {
+  OwnSumMin()
+}
+
+# Put weight on own payoff, total payoff and minimal payoff
+OwnSumMin = function(player=1,own_weight = 1, sum_weight=1, min_weight=1,n=2) {
+	sum = paste0("payoff_",seq_len(n), collapse="+")
+	min = paste0("pmin(",paste0("payoff_",seq_len(n),collapse=", "),")")
+	u = paste0(own_weight," * payoff_",player," + ",sum_weight," * (", sum,") + ", min_weight, " * ", min)
+	names(u) = paste0("OwnSumMin_",own_weight,"_",sum_weight,"_",min_weight)
+	u
+
+}
+
 WSumMin = function(player=1,min_weight=1,n=2) {
 	sum = paste0("payoff_",seq_len(n), collapse="+")
 	min = paste0("pmin(",paste0("payoff_",seq_len(n),collapse=", "),")")
 	u = paste0(sum," + ", min_weight, " * ", min)
 	names(u) = paste0("W_SumMin_",min_weight)
 	u
-		
+
 }
