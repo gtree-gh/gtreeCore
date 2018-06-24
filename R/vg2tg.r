@@ -24,7 +24,7 @@ examples.vg.to.tg = function() {
   games.dir = "D:/libraries/gtree/myproject/games"
 
 	restore.point.options(display.restore.point=TRUE)
-	vg = get.vg(gameId="Centipede", games.dir = games.dir)
+	vg = get.vg(gameId="DelegationGiftExchange", games.dir = games.dir)
   tg = vg.to.tg(vg)
   et.mat = tg$et.mat
   oco.df = tg$oco.df
@@ -342,7 +342,7 @@ tg.compute.stage.players = function(tg, stage, vg.stage, kel) {
   }
 
   for (row in seq.int(NROW(sdf))) {
-    rdf = sdf[i,,drop=FALSE]
+    rdf = sdf[row,,drop=FALSE]
     players = eval(call,rdf)
     if (length(players)==0) next
     if (length(unknown <- setdiff(players, tg$players))>0) {
@@ -351,12 +351,15 @@ tg.compute.stage.players = function(tg, stage, vg.stage, kel) {
     cols = paste0(".player_",players)
 
     # get rows in original df
-    mdf = left_join(rdf,df, by="vars")
+    mdf = left_join(rdf,df, by=vars)
     rows = mdf$.ROW
 
-    for (i in players) {
-      df[rows,cols[i]] = TRUE
-    }
+    # Set all found players to TRUE
+    df[rows,cols] = TRUE
+
+    # Set player just to first player
+    # if an action is chosen, there
+    # must be a unique player in the stage
     df[rows,".player"] = players[1]
   }
 
@@ -410,12 +413,12 @@ tg.update.stage.knowledge = function(tg, lev, vg.stage, kel) {
 
   for (row in seq.int(NROW(sdf))) {
     # compute set of observed vars
-    rdf = sdf[i,,drop=FALSE]
+    rdf = sdf[row,,drop=FALSE]
     obs.vars = eval(call,rdf)
     if (length(obs.vars)==0) next
 
     # get rows in original df
-    mdf = left_join(rdf,df, by="vars")
+    mdf = left_join(rdf,df, by=vars)
     rows = mdf$.ROW
 
     if (length(unknown <- setdiff(obs.vars, colnames(df)))>0) {

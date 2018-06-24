@@ -6,12 +6,28 @@ get.xs = function(xs = app[["xs"]],app = if ("package:shinyEvents" %in% search()
 
 #' Get the gtree project directory
 #'
-#' By default the current working directory
-#' but the gtree GUI can set a different folder
+#' If the gtreeGUI is running use the project.dir specified
+#' there.
+#' Otherwise check getOptions("gtree.project.dir).
+#' If that is null return the current working directory
 #' @export
 get.project.dir = function(xs=get.xs()) {
 	if (!is.null(xs$project.dir)) return(xs$project.dir)
-	getwd()
+	project.dir = getOption("gtree.project.dir")
+	if (!is.null(project.dir)) return(project.dir)
+  getwd()
+}
+
+
+#' Set the gtree project directory
+#'
+#' By default the current working directory
+#' @export
+set.project.dir = function(project.dir=getwd(), xs=get.xs()) {
+  if (!is.null(xs)) {
+    xs$project.dir = project.dir
+  }
+  options(gtree.project.dir=project.dir)
 }
 
 #' Get the gtree games directory
@@ -247,6 +263,8 @@ get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.e
 	eq.li = gambit.solve.eq(tg, just.spe=just.spe, mixed=mixed,eq.dir=eq.dir,save.eq = save.new,solver=solver,solvemode=solvemode,...)
 	eq.li
 }
+
+
 
 example.remove.all.tg = function() {
   games.dir = "D:/libraries/gtree/myproject/games"
