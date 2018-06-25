@@ -24,8 +24,9 @@ examples.vg.to.tg = function() {
   games.dir = "D:/libraries/gtree/myproject/games"
 
 	restore.point.options(display.restore.point=TRUE)
-	vg = get.vg(gameId="DelegationGiftExchange", games.dir = games.dir)
+	vg = get.vg(gameId="DelegationGiftExchange", games.dir = games.dir, always.new=TRUE)
   tg = vg.to.tg(vg)
+
   et.mat = tg$et.mat
   oco.df = tg$oco.df
   lev.li = tg$lev.li
@@ -35,7 +36,7 @@ tg.msg.fun = function(...) {
 	cat(paste0("\n",...))
 }
 
-vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.spo=FALSE, msg.fun = tg.msg.fun) {
+vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
   restore.point("vg.to.tg")
 
 	branching.limit = as.numeric(branching.limit)
@@ -46,7 +47,7 @@ vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.sp
 
   tg = new.env()
   tg$ok = FALSE
-  tg$kel = keyErrorLog()
+  tg$kel = keyErrorLog(stop=stop)
   restore.point("vg.to.tg.inner")
 
 
@@ -108,6 +109,7 @@ vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.sp
 
  	make.tg.know.var.groups(tg)
   make.tg.ise.df(tg)
+
   #make.tg.iso.df(tg)
 
   # set payoff utility as standard
@@ -306,7 +308,7 @@ tg.compute.stage.players = function(tg, stage, vg.stage, kel) {
   call = vg.stage$player
 
   # fixed player sets
-  if (!is(call, "call")) {
+  if (!is(call, "call") & !is(call,"name")) {
     stage$fixed.players = TRUE
     stage$players = call
     stage$multi.player = length(call)>1

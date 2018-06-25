@@ -3,11 +3,10 @@
 
 examples.vg.to.tg = function() {
   setwd("D:/libraries/gtree/myproject")
-  jg = get.jg("UltimatumGame")
-  rg = jg.to.rg(jg)
-  vg = rg.to.vg(rg,variant="base")
-  tg = vg.to.tg(vg)
+  gameId = "DelegationGiftExchange"
+  tg = get.tg(gameId = gameId)
   efg = tg.to.efg(tg)
+  compute.info.set.move.ind.gambit.order(tg=tg)
 
   oco.df = tg$oco.df
   lev.li = tg$lev.li
@@ -217,4 +216,5 @@ nature.level.to.gambit.txt = function(lev, oco.df, info.set.start = 1) {
   )
   txt
 }
+
 

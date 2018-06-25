@@ -1,11 +1,20 @@
 example.gambit.solve.eq = function() {
 	# set working directory to project directory
   setwd("D:/libraries/gtree/myproject")
-	gameId = "UltimatumGame"
-	tg = get.tg(gameId = gameId,never.load = FALSE)
+	gameId = "TestGambit"
+	gameId = "DelegationGiftExchange"
+	tg = get.tg(gameId = gameId,never.load = !FALSE)
+
+	eq.li = gambit.solve.eq(tg)
 
 	eq.li = get.eq(tg)
 	eq.li
+  eqo.df = eq.outcomes(eq.li, tg=tg)
+  eqo.df
+
+  eeqo.df = expected.eq.outcomes(eqo.df)
+
+
 
 	# Inequity aversion
   alpha = 0.371; beta=0.31
@@ -205,10 +214,25 @@ save.eq.li = function(eq.li, eq.id = get.eq.id(tg=tg,...),tg,  eq.dir=get.eq.dir
 # it is a vector with as many elements as
 # information set moves and contains values between 0 and 1, describing the move probabilty for each information set. A pure strategy contains only 0s and 1s.
 # We convert it to eq.mat by writing the returned info set move probabilities at the right postion of et.mat.
-ceq.to.eq.mat = function(ceq,eq.ind=1, tg,et.ind=which(tg$et.mat<0)) {
+#
+# efg.move.inds is used because Gambit orders the information
+# sets in the computed equilibria by player first and then
+# in order of appearance in the efg file, while
+# gtree orders them by stage.
+ceq.to.eq.mat = function(ceq,eq.ind=1, tg,et.ind=which(tg$et.mat<0), efg.move.inds = compute.efg.move.inds(tg)) {
   restore.point("ceq.to.eq.mat")
   eq.mat = tg$et.mat
-  eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
+
+  if (is.null(efg.move.inds)) {
+    eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
+  } else {
+    # Accpunt for th
+
+    ceq.gtree.order = integer(length(ceq))
+    ceq.gtree.order[efg.move.inds] = ceq
+    eq.mat[et.ind] = ceq.gtree.order[-eq.mat[et.ind]]
+
+  }
   .prob = rowProds(eq.mat)
   eq.mat = cbind(eq.mat, .prob)
   attr(eq.mat,"eq.ind") = eq.ind
@@ -402,3 +426,60 @@ gambit.output.to.eq.li = function(txt,tg) {
   eq.li
 
 }
+
+
+# Just found out recently that
+# Gambit equilibrium output is sorted by player
+# first and then by order in the efg file using depth first
+# traversel.
+#
+# In contrast, gtree inform sets are numbered by stages
+# and breadth first.
+#
+# The following function maps gtree .info.set.move indices
+# to the position of the move in the Gambit equilibrium output
+compute.efg.move.inds = function(tg,efg.txt = readLines(efg.file), efg.file=file.path(get.efg.dir(tg$gameId), tg.efg.file.name(tg))) {
+  restore.point("efg.move.inds")
+
+  rows = str.starts.with(efg.txt, "p ")
+  efg.txt = str.between(efg.txt[rows],'" ',' "')
+  player = as.integer(str.left.of(efg.txt," "))
+  info.set.ind = as.integer(str.right.of(efg.txt," "))
+
+  df = as_data_frame(nlist(player, info.set.ind))
+
+  # Only first encounter of an information set is relevant
+  # for gambit's output order
+  df = df[!duplicated(info.set.ind),]
+  df$efg.pos = seq_len(NROW(df))
+  ord = order(df$player, df$efg.pos)
+  df = df[ord,]
+  df$efg.pos = seq_len(NROW(df))
+
+  ise.df = tg$ise.df
+  info.set.ind = 1
+  efg.move.inds = c(unlist(lapply(df$info.set.ind, function(info.set.ind){
+    row = which(ise.df$.info.set.ind == info.set.ind)
+    start = ise.df$.info.set.move.ind.start[row]
+    start:(start+ise.df$.num.moves[row]-1)
+  })))
+
+  efg.move.inds
+  # Example:
+  # efg.move.inds
+  # [1]  1  2  3  4  7  8  9  5  6 10 11 12 13 14 15
+  # This means ceq[5] should be set where tg$et.mat == -7
+  # Let us define ceq.move.order with
+  #   ceq.move.order[7] = ceq[5]
+  # We thus need
+  #   ceq.move.order[efg.move.inds] = ceq
+  #
+
+  # We have
+  # ceq.move.order = ceq
+  # ceq.move.order[efg.move.inds] = ceq
+  # We have ceq[efg.move.inds]
+
+}
+
+

@@ -4,6 +4,10 @@ get.xs = function(xs = app[["xs"]],app = if ("package:shinyEvents" %in% search()
 	xs
 }
 
+gtree.stop.on.error = function(..., xs=get.xs()) {
+  is.null(xs)
+}
+
 #' Get the gtree project directory
 #'
 #' If the gtreeGUI is running use the project.dir specified

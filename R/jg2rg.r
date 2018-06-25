@@ -20,11 +20,11 @@ examples.jg.to.rg = function() {
 }
 
 
-jg.to.rg = function(jg) {
+jg.to.rg = function(jg, stop=gtree.stop.on.error()) {
   restore.point("jg.to.rg")
   rg = new.env()
 
-  rg$kel = keyErrorLog(stop = FALSE)
+  rg$kel = keyErrorLog(stop = stop)
   rg$gameId = jg$gameId
   rg$gameInfo = jg$gameInfo
   parse.jg.varpar(rg,jg)

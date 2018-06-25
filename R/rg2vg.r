@@ -19,10 +19,10 @@ examples.rg.to.vg = function() {
 }
 
 
-rg.to.vg = function(rg, variant=1) {
+rg.to.vg = function(rg, variant=1, stop=gtree.stop.on.error()) {
   restore.point("rg.to.vg")
   vg = new.env()
-  vg$kel = keyErrorLog()
+  vg$kel = keyErrorLog(stop=stop)
   vg$gameId = rg$gameId
   if (is.numeric(variant)) variant = rg$variants[variant]
   vg$variant = variant

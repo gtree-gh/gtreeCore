@@ -1,6 +1,6 @@
 keyErrorLog = function(stop=FALSE, append.char="<br>", line.break.char="<br>") {
   kel = new.env()
-  
+
   kel$terminate = FALSE
   kel$append.char = append.char
   kel$line.break.char = line.break.char
@@ -35,7 +35,9 @@ keyErrorLog = function(stop=FALSE, append.char="<br>", line.break.char="<br>") {
     #cat("\nkel: ");print(kel)
     # format vector params by default
     params = lapply(params, function(param) paste0(param, collapse=",  "))
-    message = replace.whiskers(message, params, eval=FALSE)
+    #message = replace.whiskers(message, params, eval=FALSE)
+    message = whisker::whisker.render(message, params)
+
     if (!is.null(kel$line.break.char)) {
       message = gsub("\n",kel$line.break.char,message)
     }
@@ -68,7 +70,7 @@ keyErrorLog = function(stop=FALSE, append.char="<br>", line.break.char="<br>") {
     }
     return(res)
   }
-  
+
   kel
 
 }
@@ -81,6 +83,6 @@ set.leaf.value = function(li, value) {
     nli = lapply(li, set.leaf.value, value=value)
     return(nli)
   }
-} 
+}
 
 

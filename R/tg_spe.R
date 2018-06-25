@@ -496,7 +496,10 @@ tg.spe.li.to.eq.li = function(spe.li,tg, .sg.ind=1) {
 	# now use the same conversion as in
 	# xs_gambit
 	eq.li = lapply(seq_len(NROW(ceq.mat)), function(row) {
-		eq.mat = ceq.to.eq.mat(ceq=ceq.mat[row,], eq.ind=row, tg=tg, et.ind=et.ind)
+	  # We set pos.transform to NULL, since internal computation
+	  # already orders the information set moves in ceq by information
+	  # set number, not by player first, as Gambit does
+		eq.mat = ceq.to.eq.mat(ceq=ceq.mat[row,], eq.ind=row, tg=tg, et.ind=et.ind,efg.move.inds =NULL)
 	})
 
 	eq.li

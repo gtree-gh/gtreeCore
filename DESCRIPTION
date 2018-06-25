@@ -16,7 +16,7 @@ Depends:
   restorepoint,stringtools, yaml,
   data.table,dplyr, dplyrExtras, 
   codeUtils, tidyr, digest,
-  sys, lubridate, jsonlite
+  sys, lubridate, jsonlite, whisker
 Suggests: knitr,
     rmarkdown
 VignetteBuilder: knitr
