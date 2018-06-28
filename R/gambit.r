@@ -2,7 +2,7 @@ example.gambit.solve.eq = function() {
 	# set working directory to project directory
   setwd("D:/libraries/gtree/myproject")
 	gameId = "TestGambit"
-	gameId = "TestCondEq"
+	gameId = "UltimatumGame"
 	tg = get.tg(gameId = gameId,never.load = !FALSE)
 
 	eq.li = gambit.solve.eq(tg)
@@ -112,7 +112,8 @@ expected.eq.outcomes = function(eqo.df, group.vars=c("eq.ind", "eqo.ind")) {
 	all.vars = c(group.vars, vars)
 	res = eqo.df[,all.vars, drop=FALSE] %>%
 		group_by_(.dots=group.vars) %>%
-		do(fun(.))
+		do(fun(.)) %>%
+	  ungroup()
 	res
 
 }
@@ -303,7 +304,7 @@ eq.outcome = function(eq.mat, oco.df=tg$oco.df, tg=NULL, cond=NULL) {
 #' @param expected return expected conditional equilibrium outcomes
 #' @param remove.duplicate.eq remove conditional outcomes that are duplicates but arise in different equilibria (who differ off the conditional path)
 cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df, expected=FALSE, remove.duplicate.eq=TRUE) {
-  restore.point("cond.eq.outcome")
+  restore.point("cond.eq.outcomes")
 	li = lapply(seq_along(eq.li), function(i) {
 		eq.mat = eq.li[[i]]
 		eq.ind = first.non.null(attr(eq.mat,"eq.ind"),i)
@@ -314,7 +315,8 @@ cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df, expected=FALS
 	# Remove duplicated equilibria that
 	# have the same equilibrium outcomes
 	if (remove.duplicate.eq) {
-    cols = setdiff(colnames(ceqo),"eq.ind")
+    cols = setdiff(colnames(ceqo),c("eq.ind","is.eqo"))
+    ceqo = arrange(ceqo, ceqo.ind, !is.eqo)
     dupl = duplicated(ceqo[,cols])
     if (any(dupl))
       ceqo = ceqo[!dupl,,drop=FALSE]
@@ -322,6 +324,8 @@ cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df, expected=FALS
 
 	if (expected)
     return(expected.cond.eq.outcomes(ceqo))
+
+
 	return(ceqo)
 }
 
