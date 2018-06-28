@@ -2,7 +2,7 @@ example.gambit.solve.eq = function() {
 	# set working directory to project directory
   setwd("D:/libraries/gtree/myproject")
 	gameId = "TestGambit"
-	gameId = "DelegationGiftExchange"
+	gameId = "TestCondEq"
 	tg = get.tg(gameId = gameId,never.load = !FALSE)
 
 	eq.li = gambit.solve.eq(tg)
@@ -12,7 +12,9 @@ example.gambit.solve.eq = function() {
   eqo.df = eq.outcomes(eq.li, tg=tg)
   eqo.df
 
-  eeqo.df = expected.eq.outcomes(eqo.df)
+  ceqo = cond.eq.outcomes(eq.li, cond=list(probA=c(0.2,0.8)),tg = tg, expected=TRUE)
+
+  eceqo = expected.cond.eq.outcomes(ceqo)
 
 
 
@@ -53,6 +55,7 @@ example.gambit.solve.eq = function() {
   eeqo = expected.eq.outcomes(eqo)
 
 }
+
 
 #' compute expected equilibrium outcomes
 #' taking expectations over moves of nature
@@ -257,6 +260,10 @@ get.eq.id = function(tg.id=tg$tg.id, just.spe=TRUE, mixed=FALSE, tg=NULL, solvem
 eq.outcomes = function(eq.li, oco.df = tg$oco.df, tg=NULL, cond=NULL, compress=TRUE, as.data.frame=TRUE) {
   restore.point("eq.outcomes")
   eqo.li = lapply(eq.li, eq.outcome, oco.df=oco.df, tg=tg, cond=cond)
+  if (length(eqo.li)>0) {
+    is.null = sapply(eqo.li,is.null)
+    eqo.li = eqo.li[!is.null]
+  }
   if (compress) {
     # unique equilibrium ouctomes
     u.li = unique(eqo.li)
@@ -281,22 +288,51 @@ eq.outcome = function(eq.mat, oco.df=tg$oco.df, tg=NULL, cond=NULL) {
   if (!is.null(cond)) return(cond.eq.outcome(eq.mat, cond, oco.df, tg))
   oco.rows = eq.mat[,".prob"] > 0
   eo.df = oco.df[oco.rows,]
+  if (NROW(eo.df)==0) return(NULL)
+
   eo.df$.prob = eq.mat[oco.rows,".prob"]
   xs.col.order(eo.df,tg)
 }
 
-#' return a conditional equilibrium outcome
-#' cond is a list with variable names and their assumed value
+#' Return a conditional equilibrium outcome
+#'
+#' @param eq.li The computed equilibria in gtree form
+#' @param cond is a list with variable names and their assumed value
 #' we only pick rows from oco.df in which the condition is satisfied
 #' we set the probabilities of the conditioned variable values to 1
-cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df) {
+#' @param expected return expected conditional equilibrium outcomes
+#' @param remove.duplicate.eq remove conditional outcomes that are duplicates but arise in different equilibria (who differ off the conditional path)
+cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df, expected=FALSE, remove.duplicate.eq=TRUE) {
   restore.point("cond.eq.outcome")
 	li = lapply(seq_along(eq.li), function(i) {
 		eq.mat = eq.li[[i]]
 		eq.ind = first.non.null(attr(eq.mat,"eq.ind"),i)
 		cond.eq.outcome(eq.mat, cond=cond, oco.df=oco.df, tg=tg, eq.ind=eq.ind)
 	})
-	xs.col.order(bind_rows(li),tg)
+	ceqo = xs.col.order(bind_rows(li),tg)
+
+	# Remove duplicated equilibria that
+	# have the same equilibrium outcomes
+	if (remove.duplicate.eq) {
+    cols = setdiff(colnames(ceqo),"eq.ind")
+    dupl = duplicated(ceqo[,cols])
+    if (any(dupl))
+      ceqo = ceqo[!dupl,,drop=FALSE]
+	}
+
+	if (expected)
+    return(expected.cond.eq.outcomes(ceqo))
+	return(ceqo)
+}
+
+
+expected.cond.eq.outcomes = function(ceqo.df) {
+  restore.point("expected.cond.eq.outcomes")
+  if (!"eqo.ind" %in% colnames(ceqo.df))
+    ceqo.df$eqo.ind = ceqo.df$eq.ind
+  res = expected.eq.outcomes(ceqo.df, group.vars=c("ceqo.ind","eq.ind"))
+  res = select(res,-eqo.ind)
+  res
 }
 
 
@@ -304,14 +340,14 @@ cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df) {
 #' cond is a list with variable names and their assumed value
 #' we only pick rows from oco.df in which the condition is satisfied
 #' we set the probabilities of the conditioned variable values to 1
-cond.eq.outcome = function(eq.mat, cond, tg=NULL, oco.df=tg$oco.df, eq.ind = first.non.null(attr(eq.mat,"eq.ind"),NA), eo.df = eq.outcome(eq.mat=eq.mat, oco.df=oco.df, tg=tg)) {
+cond.eq.outcome = function(eq.mat, cond, tg=NULL, oco.df=tg$oco.df, eq.ind = first.non.null(attr(eq.mat,"eq.ind"),NA), eo.df = eq.outcome(eq.mat=eq.mat, oco.df=oco.df, tg=tg), ceqo.ind=1) {
   restore.point("cond.eq.outcome")
 	cond.df = as_data_frame(cond)
 
 	# multiple rows, call function repeatedly
 	if (NROW(cond.df)>1) {
 		li = lapply(seq_len(NROW(cond.df)), function(row) {
-			cond.eq.outcome(eq.mat=eq.mat, cond = cond.df[row,,drop=FALSE], oco.df = oco.df, tg =tg, eq.ind=eq.ind, eo.df = eo.df)
+			cond.eq.outcome(eq.mat=eq.mat, cond = cond.df[row,,drop=FALSE], oco.df = oco.df, tg =tg, eq.ind=eq.ind, eo.df = eo.df, ceqo.ind=row+ceqo.ind-1)
 		})
 		return(bind_rows(li))
 	}
@@ -344,6 +380,7 @@ cond.eq.outcome = function(eq.mat, cond, tg=NULL, oco.df=tg$oco.df, eq.ind = fir
 	)
 	eo.df$is.eqo = TRUE
 	ceo.df = left_join(ceo.df, eo.df[,c(keys,"is.eqo")],by=keys)
+	ceo.df$ceqo.ind = ceqo.ind
 	ceo.df$is.eqo[is.na(ceo.df$is.eqo)] = FALSE
 
   xs.col.order(ceo.df,tg)
