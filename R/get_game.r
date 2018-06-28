@@ -238,11 +238,28 @@ save.tg = function(tg, games.dir = get.games.dir(project.dir), project.dir = get
 	saveRDS(tg, file)
 }
 
+has.uptodate.eq = function(tg,util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.eq.dir(tg$gameId,project.dir), efg.dir = get.efg.dir(tg$gameId, project.dir), project.dir = get.project.dir(), save.new = TRUE, solvemode=NULL, solver=NULL, ...) {
+
+  if (!is.null(util.funs))
+		set.tg.util(tg=tg,util.funs)
+
+	eq.id = get.eq.id(tg=tg, just.spe=just.spe, mixed=mixed, solvemode=solvemode)
+	file = file.path(eq.dir, paste0(eq.id,".eq"))
+	if (file.exists(file)) {
+		# return old vg if jg.hash has not changed
+		eq = readRDS(file)
+		if (identical(tg$jg.hash, eq$jg.hash))
+			return(TRUE)
+	}
+  return(FALSE)
+
+}
+
 #' Compute or return previously computed equilibria
 #'
 #' Uses cached equilibria if json file of the game has not
 #' changed. Otherwise solve new equilibrium via gambit.eq.solve
-get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.eq.dir(tg$gameId,project.dir), efg.dir = get.efg.dir(tg$gameId, project.dir), project.dir = get.project.dir(), save.new = TRUE, solvemode=NULL, solver=NULL, only.load=FALSE,...) {
+get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.eq.dir(tg$gameId,project.dir), efg.dir = get.efg.dir(tg$gameId, project.dir), project.dir = get.project.dir(), save.new = TRUE, solvemode=NULL, solver=NULL, only.load=FALSE,create.efg.even.for.only.load=TRUE,...) {
 	restore.point("get.eq")
 	if (!is.null(util.funs))
 		set.tg.util(tg=tg,util.funs)
@@ -257,10 +274,12 @@ get.eq = function(tg, util.funs=NULL, just.spe=TRUE, mixed=FALSE, eq.dir = get.e
 			return(eq$eq.li)
 	}
 
+	# create up-to-date efg file even if only.load = TRUE
+	if (!only.load | create.efg.even.for.only.load)
+	  tg.to.efg(tg=tg, path=efg.dir)
+
 	if (only.load) return(NULL)
 
-	# create efg file
-	tg.to.efg(tg=tg, path=efg.dir)
 
 
 	# solve equilibrium
