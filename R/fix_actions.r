@@ -22,51 +22,215 @@
 
 example.fix.actions = function() {
   setwd("D:/libraries/gtree/myproject")
+	gameId = "UG"
 	gameId = "UltimatumGame"
 	tg = get.tg(gameId = gameId, never.load = FALSE)
 
-	oco.df = tg$oco.df
-  # Only accept offers of at least 5
-
-	fix.df = data_frame(offer=0:7, accept=(offer<=5)*1)
+	fix.df = data_frame(offer=0:6, accept=(offer<=5)*1)
   var = get.fix.df.var(fix.df)
-
   lev = tg$lev.li[[2]]
-  names(lev)
-
   res = lev.action.to.nature(lev, fix.df,var=var)
+
+  fix.df2 = data_frame(offer=9:10, accept=(offer<=5)*1)
+  fix.li = list(fix.df, fix.df2)
+  res = lev.action.to.nature(lev, fix.li=fix.li)
+
+
+  res = fix.tg.actions(tg, fix.li=fix.li)
 
 
   nlev = res[[2]]
 }
 
-fix.tg.actions = function(tg, fix.df, var=NULL, fix.li=NULL, omit.zero.prob=TRUE) {
+fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, omit.zero.prob=TRUE) {
   restore.point("fix.tg.actions")
-  new.levs = lapply(tg$lev.li, function(lev) {
-    lev.action.to.nature(lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob)
-  })
 
-  new.levs
+  # Make copy of tg
+  old.tg = tg
+  tg = as.environment(as.list(tg))
+
+  # Compute lev.li in which actions are transformed to moves of nature
+  # as specified by fix.df
+  li = lapply(tg$lev.li,function(lev) {
+    lev.action.to.nature(lev=lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob)
+  })
+  lev.li = do.call(c, li)
+
+  # Perform all necessary auxilliary computations to set the new lev.li
+  # Information sets, oco.df, et.mat etc
+  tg = set.new.tg.lev.li(tg, lev.li)
 
 }
 
 
-lev.action.to.nature = function(lev, fix.df,var = NULL, fix.li=NULL,omit.zero.prob=TRUE,...) {
+# Set a modified lev.li for a tg
+# and updated other required parameters
+set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=FALSE) {
+  restore.point("set.new.tg.lev.li")
+
+  tg$ok = FALSE
+  # 1. a) Correctly set node and information set indices
+  #       in lev.li.
+  #    b) Compute .row.1, .row.2 etc
+  #    c) Compute stage.df
+
+  acols = cols = c(".node.ind",".info.set.move.ind",".info.set.ind")
+  ncols = c(".node.ind")
+  ind = rep(0, length(cols))
+  names(ind) = cols
+
+  lev.num = 0
+
+  stage.df = NULL
+  prev.vars = NULL
+  while (lev.num < length(lev.li)) {
+    lev.num = lev.num+1
+    lev = lev.li[[lev.num]]
+    lev.df = lev$lev.df
+
+    # Set .node.ind etc
+    cur.cols = if(lev$type=="action") acols else ncols
+    for (col in cur.cols) {
+      uni = unique(lev.df[[col]])
+      lev.df[[col]] = match(lev.df[[col]], uni) + ind[col]
+      ind[col] = ind[col] + length(uni)
+    }
+
+
+    # create .row.1., .row.2, ... columns
+    # that link lev.df to the rows in earlier lev.df
+    lev.df[[paste0(".row.",lev.num)]] = seq_len(NROW(lev.df))
+    if (lev.num == 1) {
+      if (lev$type=="nature") {
+        lev.df$.prob = lev.df$.move.prob
+      } else {
+        lev.df$.prob = 1
+      }
+      stage.df = lev.df
+    } else if (lev.num > 1) {
+      # Join stage.df with current lev.df
+
+      # Don't join on current action var
+      join.cols = setdiff(prev.vars, lev$vars) %>%
+        intersect(colnames(lev.df))
+
+
+      ommited.stage.df = anti_join(stage.df, lev.df, by=join.cols)
+      used.stage.df = semi_join(stage.df, lev.df, by=join.cols)
+
+      left.df = select(lev.df, - .prob)
+      right.df = used.stage.df[, unique(c(join.cols,setdiff(colnames(used.stage.df), colnames(left.df)), ".prob"))]
+      lev.df = left_join(left.df,right.df, by=join.cols)
+      if (lev$type=="nature") {
+        lev.df$.prob = lev.df$.prob * lev.df$.move.prob
+      }
+      stage.df = bind_rows(lev.df, ommited.stage.df)
+    }
+
+
+    lev$lev.num = lev.num
+    lev$lev.df = lev.df
+
+    lev.li[[lev.num]] = lev
+    prev.vars = unique(c(prev.vars,lev$var))
+  }
+  restore.point("set.new.tg.lev.li2")
+
+  tg$lev.li = lev.li
+  tg$stage.df = stage.df
+  tg$lev.vars = prev.vars
+
+  # 2. Compute oco.df, ise.df etc
+ 	# compute et.mat, oco and other variables...
+ 	compute.tg.et.oco.etc(tg)
+
+  # know.var groups help to compute iso.df
+  # later on
+ 	make.tg.know.var.groups(tg)
+  make.tg.ise.df(tg)
+
+  # Set previous utility function
+  set.tg.util(tg=tg, util.funs = tg$util.funs)
+
+  if (add.sg) {
+  	compute.tg.subgames(tg)
+  }
+	if (add.spi) {
+		make.tg.spi.li(tg)
+	}
+	if (add.spo) {
+  	make.tg.spo.li(tg)
+	}
+
+	tg$ok = TRUE
+  return(tg)
+}
+
+
+lev.action.to.nature.fix.li = function(lev,fix.li=NULL, var = NULL,omit.zero.prob=TRUE, lev.li = NULL, ...) {
+  restore.point("lev.action.to.nature.fix.li")
+  # We start with an action level
+  act.lev = lev
+  nat.lev = NULL
+  fix.df = fix.li[[1]]
+  for (fix.df in fix.li) {
+    lev.li = lev.action.to.nature(act.lev, fix.df=fix.df, var=var, omit.zero.prob = omit.zero.prob)
+    if (lev.li[[1]]$type == "action") {
+      act.lev = lev.li[[1]]
+      lev.li = lev.li[2]
+    } else {
+      act.lev = NULL
+    }
+
+    # Combine nature levels to reduce number of levels
+    if (length(lev.li)>0) {
+      nat.lev = merge.fix.actions.nat.levs(nat.lev, lev.li[[1]])
+    }
+
+    # All action nodes are transformed into a move of nature
+    if (is.null(act.lev)) break
+  }
+  if (is.null(act.lev)) return(list(nat.lev))
+  if (is.null(nat.lev)) return(list(act.lev))
+  return(list(act.lev,nat.lev))
+}
+
+
+
+merge.fix.actions.nat.levs = function(lev1, lev2) {
+  restore.point("merge.nat.levs")
+
+  if (is.null(lev1)) return(lev2)
+  if (is.null(lev2)) return(lev1)
+
+  lev = lev1
+  lev$lev.df = rbind(lev1$lev.df, lev2$lev.df)
+  lev$know.li = lapply(seq_along(lev$know.li), function(player) {
+    rbind(lev1$know.li[[player]],lev2$know.li[[player]])
+  })
+  return(lev)
+}
+
+# Transforms some or all nodes of an action level
+# to moves of nature
+#
+# Does not adapt information set or node numbers
+lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.li = NULL,fix.li=NULL, ...) {
+
+  # Only actions can be fixed
+  if (lev$type != "action")
+    return(list(lev))
+
+  # Vectorized version if fix.li or lev.li is given
+  if (!is.null(fix.li))
+    return(lev.action.to.nature.fix.li(lev, var=var, omit.zero.prob=omit.zero.prob, fix.li=fix.li))
+
+
   restore.point("lev.action.to.nature")
 
   if (is.null(var))
     var = get.fix.df.var(fix.df)
 
-  if (!is.null(fix.li)) {
-    res = lapply(fix.li, function(fix.df) {
-      lev.action.to.nature(lev, fix.df, var=var, omit.zero.prob = omit.zero.prob,...)
-    })
-    return(do.call(c, res))
-  }
-
-  # Only actions can be fixed
-  if (lev$type != "action")
-    return(list(lev))
 
   # A different action than the one fixed
   if (var!=lev$var)
@@ -80,16 +244,26 @@ lev.action.to.nature = function(lev, fix.df,var = NULL, fix.li=NULL,omit.zero.pr
   by.cols = intersect(colnames(lev.df), colnames(fix.df))
   key.cols = setdiff(by.cols, var)
 
+  # Nodes that remain as actions that remain
+  act.df = anti_join(lev.df, fix.df, by=key.cols)
+
+  # Nodes that will become move of nature
+  lev.df = semi_join(lev.df, fix.df, by=key.cols)
+
+  # filter.df does not pick up any rows
+  if (NROW(lev.df)==0) {
+    return(list(lev))
+  }
+
+
   # If fix.df assigns deterministic actions
   # specify it as a move of nature with probability 1
   fix.has.prob = ".move.prob" %in% fix.df
   if (!fix.has.prob) {
     fix.df$.move.prob = 1
     if (!omit.zero.prob) {
-      # Only use cases specified by keys
-      left = semi_join(lev.df[,by.cols], fix.df, by=key.cols)
       # Match to all values of var
-      fix.df = left_join(left, fix.df[,c(by.cols,".move.prob")], by=by.cols)
+      fix.df = left_join(lev.df[,by.cols], fix.df[,c(by.cols,".move.prob")], by=by.cols)
       # Set probability to 0 for non-played values of var
       fix.df$.prob[is.na(fix.df$.move.prob)] = 0
     }
@@ -101,11 +275,11 @@ lev.action.to.nature = function(lev, fix.df,var = NULL, fix.li=NULL,omit.zero.pr
   join.cols = join.cols[!str.starts.with(join.cols,".row.")]
   nat.df = fix.df %>% left_join(lev.df[, join.cols], by=by.cols)
 
+
   # Order columns in original order
   cols = intersect(colnames(lev.df), colnames(nat.df)) %>%
       setdiff(".prob") %>% c(".move.prob", ".prob")
   nat.df = nat.df[,cols]
-  nat.df$.prob = nat.df$.prob * nat.df$.move.prob
 
   # Select original rows from know.li
   # This means the knowledge structure
@@ -132,10 +306,6 @@ lev.action.to.nature = function(lev, fix.df,var = NULL, fix.li=NULL,omit.zero.pr
     lev.df=nat.df,
     know.li = lev$know.li # TO DO: HOW TO ADAPT know.li
   )
-
-
-  # Check if some actions remain
-  act.df = anti_join(lev.df, fix.df, by=key.cols)
 
   # All nodes where transformed to a move of nature
   if (NROW(act.df)==0) {
