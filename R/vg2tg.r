@@ -606,6 +606,7 @@ compute.nature.level = function(tg,stage, randomVar, lev.df, know.li, kel) {
 
   # rows for expanding
   erows = lev.df$.node.ind
+
   # update knowledge matrices
   know.li = lapply(seq_along(know.li), function(i) {
     mat = add.var.to.know.mat(know.li[[i]],var)
