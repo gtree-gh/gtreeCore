@@ -80,7 +80,7 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
   #oco.df = cbind(oco.df, u.mat)
   oco.txt = util.df.to.gambit.txt(u.mat)
 
-  # a text that will be appended to (some) output nodes
+  # text vector that will be appended to (some) output nodes
   # describing the action and nature nodes before them
   # in the gambit tree format
   pre.txt = rep("", length(oco.txt))
@@ -102,7 +102,8 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
     }
 
 
-    # match outcome rows
+    # Match outcome rows for each node at the current lev.df
+    # Then add each ltext row before the smallest outcome row
     if (lev$lev.num==1) {
       text.row=1
 
@@ -110,11 +111,11 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
       df = filter(lev.df, .move.ind==1)
       df = s_select(df,".node.ind", lev.vars)
 
+
       mdf = left_join(df, s_select(oco.df,".outcome",lev.vars),by=lev.vars)
       sdf = summarise(group_by(mdf,.node.ind), text.row = min(.outcome) )
       text.row = sdf$text.row
     }
-    # add current text before the smallest outcome row
 
     pre.txt[text.row] = paste0(pre.txt[text.row],ltxt,"\n")
   }
@@ -131,9 +132,11 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
     writeLines(txt, paste0(path,"/",file))
     if (verbose)
       display("Written to ", path,"/", file )
-
+    return(invisible(file.path(path, file)))
+  } else {
+    return( invisible(txt))
   }
-  invisible(txt)
+
 }
 
 util.df.to.gambit.txt = function(util.df=NULL) {

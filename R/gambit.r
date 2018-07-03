@@ -59,8 +59,13 @@ example.gambit.solve.eq = function() {
 
 #' compute expected equilibrium outcomes
 #' taking expectations over moves of nature
-expected.eq.outcomes = function(eqo.df, group.vars=c("eq.ind", "eqo.ind")) {
+expected.eq.outcomes = function(eqo.df=NULL, group.vars=c("eq.ind", "eqo.ind"),eq.li=NULL, tg=NULL) {
 	restore.point("expected.eq.outcomes")
+
+
+  if (!is.null(eq.li) & is.null(eqo.df)) {
+    eqo.df = eq.outcomes(eq.li,tg = tg)
+  }
 
 	if (NROW(eqo.df)==0) return(eqo.df)
 

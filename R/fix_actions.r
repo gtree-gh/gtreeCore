@@ -22,27 +22,28 @@
 
 example.fix.actions = function() {
   setwd("D:/libraries/gtree/myproject")
-	gameId = "UG"
 	gameId = "UltimatumGame"
-	tg = get.tg(gameId = gameId, never.load = FALSE)
+	gameId = "UG2"
+	tg = get.tg(gameId = gameId, never.load = !FALSE)
 
-	fix.df = data_frame(offer=0:6, accept=(offer<=5)*1)
-  var = get.fix.df.var(fix.df)
-  lev = tg$lev.li[[2]]
-  res = lev.action.to.nature(lev, fix.df,var=var)
-
-  fix.df2 = data_frame(offer=9:10, accept=(offer<=5)*1)
+	fix.df = data_frame(offer=c(0:1), accept=0)
+  fix.df2 = data_frame(offer=3, accept=1)
   fix.li = list(fix.df, fix.df2)
-  res = lev.action.to.nature(lev, fix.li=fix.li)
+
+  tg.fix = fix.tg.actions(tg, fix.li=fix.li)
+  tg.fix$tg.id
+  lev.li = tg.fix$lev.li
 
 
-  res = fix.tg.actions(tg, fix.li=fix.li)
+  save.tg(tg.fix)
 
+  efg = tg.to.efg(tg.fix)
 
-  nlev = res[[2]]
+  eq.li = get.eq(tg.fix)
+  eeo = expected.eq.outcomes(eq.li=eq.li, tg=tg.fix)
 }
 
-fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, omit.zero.prob=TRUE) {
+fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, tg.id = paste0("fixed",tg$tg.id), omit.zero.prob=TRUE) {
   restore.point("fix.tg.actions")
 
   # Make copy of tg
@@ -60,13 +61,21 @@ fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, omit.zero.prob
   # Information sets, oco.df, et.mat etc
   tg = set.new.tg.lev.li(tg, lev.li)
 
+  # Need to set tg.id at bottom
+  # since set.new.tg.lev.li will set automatic
+  # tg.id
+  tg$tg.id = tg.id
+
+  tg
 }
 
 
 # Set a modified lev.li for a tg
 # and updated other required parameters
-set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=FALSE) {
+set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.sg = FALSE, add.spi=FALSE, add.spo=FALSE) {
   restore.point("set.new.tg.lev.li")
+
+  tg = as.environment(as.list(tg))
 
   tg$ok = FALSE
   # 1. a) Correctly set node and information set indices
@@ -111,7 +120,7 @@ set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=F
       # Join stage.df with current lev.df
 
       # Don't join on current action var
-      join.cols = setdiff(prev.vars, lev$vars) %>%
+      join.cols = setdiff(prev.vars, lev$var) %>%
         intersect(colnames(lev.df))
 
 
@@ -119,7 +128,13 @@ set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=F
       used.stage.df = semi_join(stage.df, lev.df, by=join.cols)
 
       left.df = select(lev.df, - .prob)
-      right.df = used.stage.df[, unique(c(join.cols,setdiff(colnames(used.stage.df), colnames(left.df)), ".prob"))]
+
+      # Columns that will be added from stage.df to lev.df
+      stage.cols = c(join.cols,setdiff(colnames(used.stage.df), colnames(left.df)))
+      stage.cols = stage.cols[!str.starts.with(stage.cols,".")]
+      stage.cols = unique(c(stage.cols, ".prob"))
+
+      right.df = used.stage.df[, stage.cols]
       lev.df = left_join(left.df,right.df, by=join.cols)
       if (lev$type=="nature") {
         lev.df$.prob = lev.df$.prob * lev.df$.move.prob
@@ -134,6 +149,22 @@ set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=F
     lev.li[[lev.num]] = lev
     prev.vars = unique(c(prev.vars,lev$var))
   }
+
+  # Add all transformations
+  for (tr in transformations) {
+    # Formula applies to all rows
+    if (is.null(tr$cond)) {
+      stage.df[[tr$var]] = eval.on.df(call = tr$formula,stage.df)
+
+    # Transformation applies only to a subset of rows
+    } else {
+      rows = eval.on.df(tr$cond, stage.df)
+      if (!tr$var %in% colnames(stage.df))
+        stage.df[[tr$var]] = NA
+      stage.df[rows,tr$var] = eval.on.df(tr$cond, stage.df[rows,,drop=FALSE])
+    }
+  }
+
   restore.point("set.new.tg.lev.li2")
 
   tg$lev.li = lev.li
@@ -154,13 +185,19 @@ set.new.tg.lev.li = function(tg,lev.li, add.sg = FALSE, add.spi=FALSE, add.spo=F
 
   if (add.sg) {
   	compute.tg.subgames(tg)
+  } else {
+    clear.tg.subgames(tg)
   }
 	if (add.spi) {
 		make.tg.spi.li(tg)
-	}
+  } else {
+    clear.tg.spi.li(tg)
+  }
 	if (add.spo) {
   	make.tg.spo.li(tg)
-	}
+  } else {
+    clear.tg.spo.li(tg)
+  }
 
 	tg$ok = TRUE
   return(tg)
@@ -275,11 +312,16 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
   join.cols = join.cols[!str.starts.with(join.cols,".row.")]
   nat.df = fix.df %>% left_join(lev.df[, join.cols], by=by.cols)
 
+  # Add move.ind based on .node.ind
+  nat.df = nat.df %>% group_by(.node.ind) %>%
+    mutate(.move.ind = seq_len(n())) %>%
+    ungroup()
 
   # Order columns in original order
   cols = intersect(colnames(lev.df), colnames(nat.df)) %>%
       setdiff(".prob") %>% c(".move.prob", ".prob")
   nat.df = nat.df[,cols]
+
 
   # Select original rows from know.li
   # This means the knowledge structure

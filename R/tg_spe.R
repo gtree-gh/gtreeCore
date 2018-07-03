@@ -40,12 +40,22 @@ examples.make.tg.spe = function() {
 
 
 
+clear.tg.spi.li = function(tg) {
+  tg$spi.li = NULL
+}
 
 make.tg.spi.li = function(tg) {
 	restore.point("make.tg.spi.li")
 	tg$spi.li = lapply(tg$sg.df$.sg.ind, make.sg.spi,tg=tg)
 	invisible(tg)
 }
+
+
+
+clear.tg.spo.li = function(tg) {
+  tg$spo.li = NULL
+}
+
 
 make.tg.spo.li = function(tg) {
 	restore.point("make.tg.spi.li")

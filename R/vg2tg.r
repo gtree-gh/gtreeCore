@@ -65,6 +65,8 @@ vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.sp
   tg$info.set.counter = 0
   tg$info.set.move.counter = 0
 
+  tg$transformations = list()
+
 
   tg$stage.df = as_data_frame(as.data.frame(tg$params,stringsAsFactors = FALSE))
   tg$stage.df$.prob = 1
@@ -226,7 +228,7 @@ compute.tg.stage = function(stage.num, tg, vg, kel) {
   for (i in seq_along(vg.stage$compute)) {
     trans = vg.stage$compute[[i]]
     kel$setKey(base.key,"compute",i)
-    lev = compute.transformation.level(tg,stage, trans, lev$lev.df, lev$know.li, kel)
+    lev = compute.transformation.level(tg,stage,vg.stage, trans, lev$lev.df, lev$know.li, kel)
   }
 
 
@@ -716,7 +718,7 @@ eval.randomVar.to.df = function(set.call, prob.call, df, var, kel, prob.col = ".
 
 
 
-compute.transformation.level = function(tg,stage, trans, lev.df, know.li,kel) {
+compute.transformation.level = function(tg,stage, vg.stage, trans, lev.df, know.li,kel) {
   restore.point("compute.transformation.level")
   lev.num = length(tg$lev.li)+1
   var = trans$name
@@ -747,6 +749,12 @@ compute.transformation.level = function(tg,stage, trans, lev.df, know.li,kel) {
   know.li = lapply(seq_along(know.li), function(i) {
     add.var.to.know.mat(know.li[[i]],var)
   })
+
+  # Store transformations in a list to
+  # facilitate later modifications of the tg game
+  cond = vg.stage$cond
+  if (!is.name(cond) | is.call(cond)) cond = NULL
+  tg$transformations[[length(tg$transformations)+1]] = list(var=var,cond=cond, formula=trans$formula )
 
   lev = nlist(
     type="transformation",

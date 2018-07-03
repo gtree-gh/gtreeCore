@@ -170,11 +170,22 @@ get.vg = function(variant=1, gameId = first.non.null(jg$gameId,rg$gameId), jg.ha
 	vg
 }
 
+#' Load tg without any checks
+load.tg = function(variant=first.non.null(vg$variant,1), gameId = first.non.null(vg$gameId,jg$gameId,rg$gameId),jg=NULL,rg=NULL, vg=NULL, tg=NULL, tg.id=tg$tg.id, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), filename= if(!is.null(tg.id)) paste0(tg.id,".tg") else NULL) {
+
+	if (is.null(filename))
+	  filename = paste0(gameId,"_",variant, ".tg")
+
+	file = file.path(games.dir,gameId, filename)
+	tg = readRDS(file)
+  tg
+}
+
 #' Get a game in tg format by its gameId
 #'
 #' If the json file has not changed return old .tg file
 #' otherwise generate new rg and tg files from json source
-get.tg = function(variant=first.non.null(vg$variant,1), gameId = first.non.null(vg$gameId,jg$gameId,rg$gameId), jg.hash = get.jg.hash(jg=jg, rg=rg,vg=vg),jg=NULL,rg=NULL, vg=NULL, tg=NULL, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), save.new = TRUE,branching.limit = 10000,msg.fun=NULL, never.load = FALSE) {
+get.tg = function(variant=first.non.null(vg$variant,1), gameId = first.non.null(vg$gameId,jg$gameId,rg$gameId), jg.hash = get.jg.hash(jg=jg, rg=rg,vg=vg),jg=NULL,rg=NULL, vg=NULL, tg=NULL, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), save.new = TRUE,branching.limit = 10000,msg.fun=NULL, never.load = FALSE, filename=NULL) {
 	if (!is.null(tg)) return(tg)
 	restore.point("get.tg")
 
@@ -189,7 +200,10 @@ get.tg = function(variant=first.non.null(vg$variant,1), gameId = first.non.null(
 	}
 
 
-	file = file.path(games.dir,gameId, paste0(gameId,"_",variant, ".tg"))
+	if (is.null(filename))
+	  filename = paste0(gameId,"_",variant, ".tg")
+
+	file = file.path(games.dir,gameId, filename)
 	if (file.exists(file) & !never.load) {
 		# return old vg if jg.hash has not changed
 		tg = readRDS(file)
@@ -230,11 +244,11 @@ save.vg = function(vg, games.dir = get.games.dir(project.dir), project.dir = get
 }
 
 
-save.tg = function(tg, games.dir = get.games.dir(project.dir), project.dir = get.project.dir()) {
+save.tg = function(tg, games.dir = get.games.dir(project.dir), project.dir = get.project.dir(), filename = paste0(str.left.of(tg$tg.id,"__"),".tg")) {
 	gameId = tg$gameId
 	make.game.dir(gameId,games.dir = games.dir)
 
-	file = file.path(games.dir,gameId, paste0(gameId,"_",tg$variant, ".tg"))
+	file = file.path(games.dir,gameId, filename)
 	saveRDS(tg, file)
 }
 
