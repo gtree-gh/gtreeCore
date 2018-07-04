@@ -131,7 +131,7 @@ set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.
 
       # Columns that will be added from stage.df to lev.df
       stage.cols = c(join.cols,setdiff(colnames(used.stage.df), colnames(left.df)))
-      stage.cols = stage.cols[!str.starts.with(stage.cols,".")]
+      stage.cols = stage.cols[(!str.starts.with(stage.cols,".")) | str.starts.with(stage.cols, ".row.")]
       stage.cols = unique(c(stage.cols, ".prob"))
 
       right.df = used.stage.df[, stage.cols]
@@ -278,10 +278,10 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
   lev.df = lev.df[,cols]
   lev.df$.ORG.ROW = seq_len(NROW(lev.df))
 
-  by.cols = intersect(colnames(lev.df), colnames(fix.df))
+  by.cols = setdiff(intersect(colnames(lev.df), colnames(fix.df)),".move.prob")
   key.cols = setdiff(by.cols, var)
 
-  # Nodes that remain as actions that remain
+  # Nodes that remain as actions
   act.df = anti_join(lev.df, fix.df, by=key.cols)
 
   # Nodes that will become move of nature
@@ -295,7 +295,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
 
   # If fix.df assigns deterministic actions
   # specify it as a move of nature with probability 1
-  fix.has.prob = ".move.prob" %in% fix.df
+  fix.has.prob = ".move.prob" %in% colnames(fix.df)
   if (!fix.has.prob) {
     fix.df$.move.prob = 1
     if (!omit.zero.prob) {
@@ -310,7 +310,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
   # Create data frame for move of nature
   join.cols = setdiff(colnames(lev.df), c(".info.set.ind",".info.set.move.ind", ".info.set",".move.ind",".move.prob"))
   join.cols = join.cols[!str.starts.with(join.cols,".row.")]
-  nat.df = fix.df %>% left_join(lev.df[, join.cols], by=by.cols)
+  nat.df = fix.df %>% left_join(lev.df[, union(join.cols,by.cols)], by=by.cols)
 
   # Add move.ind based on .node.ind
   nat.df = nat.df %>% group_by(.node.ind) %>%
@@ -319,7 +319,8 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
 
   # Order columns in original order
   cols = intersect(colnames(lev.df), colnames(nat.df)) %>%
-      setdiff(".prob") %>% c(".move.prob", ".prob")
+      setdiff(c(".prob",".info.set.ind",".info.set.move.ind", ".info.set")) %>%
+      c(".move.prob", ".prob")
   nat.df = nat.df[,cols]
 
 
@@ -346,7 +347,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
     stage.num = lev$stage.num,
     player=0,
     lev.df=nat.df,
-    know.li = lev$know.li # TO DO: HOW TO ADAPT know.li
+    know.li = nat.know.li
   )
 
   # All nodes where transformed to a move of nature

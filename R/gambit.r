@@ -232,19 +232,20 @@ ceq.to.eq.mat = function(ceq,eq.ind=1, tg,et.ind=which(tg$et.mat<0), efg.move.in
   restore.point("ceq.to.eq.mat")
   eq.mat = tg$et.mat
 
-  if (is.null(efg.move.inds)) {
-    eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
-  } else {
-    # Accpunt for th
-
+  # Account for different ordering
+  # of gambit output and gtree's
+  # information set numbers
+  if (!is.null(efg.move.inds)) {
     ceq.gtree.order = integer(length(ceq))
     ceq.gtree.order[efg.move.inds] = ceq
-    eq.mat[et.ind] = ceq.gtree.order[-eq.mat[et.ind]]
-
+    ceq = ceq.gtree.order
   }
+  eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
+
   .prob = rowProds(eq.mat)
   eq.mat = cbind(eq.mat, .prob)
   attr(eq.mat,"eq.ind") = eq.ind
+  attr(eq.mat,"info.set.probs") = ceq
   eq.mat
 
 }
