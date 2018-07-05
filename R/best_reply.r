@@ -8,13 +8,20 @@ example.fix.actions = function() {
 	eq.li = get.eq(tg = tg, never.load=TRUE)
   eq = eq.li[[1]]
 
-  tg.br = make.best.reply.tg(tg, eq)
+  tg.br = make.best.reply.tg(tg, eq, player=2, tremble.prob = 1/100)
+  tg.br = make.best.reply.tg(tg, eq, player=2, tremble.prob = 0)
   eq.li = get.eq(tg.br, never.load=TRUE)
+  eo = eq.outcomes(eq.li, tg=tg.br)
   eeo = expected.eq.outcomes(eq.li=eq.li, tg=tg.br)
   eeo
 }
 
-make.best.reply.tg = function(tg, eq, player=1, info.set.probs=attr(eq,"info.set.probs"), omit.zero.prob = TRUE, tg.id = paste0(tg$gameId,"_", tg$variant, "_BR",player,"_eq",attr(eq,"eq.ind"))) {
+# Add uniform tremble over all moves
+add.tremble = function(move.prob, tremble.prob) {
+  (1-tremble.prob)*move.prob + tremble.prob / length(move.prob)
+}
+
+make.best.reply.tg = function(tg, eq, player=1, info.set.probs=attr(eq,"info.set.probs"), omit.zero.prob = tremble.prob==0, tg.id = paste0(tg$gameId,"_", tg$variant, "_BR",player,"_eq",attr(eq,"eq.ind")), tremble.prob = 0) {
   restore.point("make.best.reply.tg")
 
   # Make a copy of tg
@@ -43,12 +50,25 @@ make.best.reply.tg = function(tg, eq, player=1, info.set.probs=attr(eq,"info.set
 
     # Get all rows of lev.df with info sets that we want to replace
     rel.lev.df = semi_join(lev.df, ise.df, by=".info.set.ind")
+
     fix.df = as_data_frame(list(
       .info.set.move.ind = rel.lev.df$.info.set.move.ind,
       .var = rel.lev.df[[lev$var]],
       .move.prob=info.set.probs[rel.lev.df$.info.set.move.ind]
     ))
     colnames(fix.df)[2] = lev$var
+
+    # Can add uniform trembles over moves
+    # such that later information sets
+    # will be reached with positive probabilities
+    if (tremble.prob>0) {
+      fix.df$.node.ind = rel.lev.df$.node.ind
+      fix.df = fix.df %>% group_by(.node.ind) %>%
+        mutate(.move.prob = add.tremble(.move.prob, tremble.prob)) %>%
+        ungroup() %>%
+        select(-.node.ind)
+    }
+
 
     res.lev = lev.action.to.nature(lev, fix.df=fix.df, var=lev$var, omit.zero.prob = omit.zero.prob)
     return(res.lev)
