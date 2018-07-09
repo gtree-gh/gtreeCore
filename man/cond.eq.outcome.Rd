@@ -9,7 +9,8 @@ we set the probabilities of the conditioned variable values to 1}
 \usage{
 cond.eq.outcome(eq.mat, cond, tg = NULL, oco.df = tg$oco.df,
   eq.ind = first.non.null(attr(eq.mat, "eq.ind"), NA),
-  eo.df = eq.outcome(eq.mat = eq.mat, oco.df = oco.df, tg = tg))
+  eo.df = eq.outcome(eq.mat = eq.mat, oco.df = oco.df, tg = tg),
+  ceqo.ind = 1)
 }
 \description{
 return a conditional equilibrium outcome

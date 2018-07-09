@@ -8,7 +8,8 @@ get.eq(tg, util.funs = NULL, just.spe = TRUE, mixed = FALSE,
   eq.dir = get.eq.dir(tg$gameId, project.dir),
   efg.dir = get.efg.dir(tg$gameId, project.dir),
   project.dir = get.project.dir(), save.new = TRUE, solvemode = NULL,
-  solver = NULL, only.load = FALSE, ...)
+  solver = NULL, only.load = FALSE, create.efg.even.for.only.load = TRUE,
+  never.load = FALSE, ...)
 }
 \description{
 Uses cached equilibria if json file of the game has not

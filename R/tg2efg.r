@@ -21,6 +21,8 @@ get.tg.id = function(tg) {
 
 	util.funs.name = get.util.funs.name(tg$util.funs)
 	base.lab = paste0(tg$gameId,"_", tg$variant)
+	if (isTRUE(tg$is.first.best))
+	  base.lab = paste0(tg$gameId,"_FirstBest_", tg$variant)
 	if (is.null(util.funs.name)) return(base.lab)
 	paste0(base.lab,"__",paste0(util.funs.name,collapse="__"))
 }

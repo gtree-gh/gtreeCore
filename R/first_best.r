@@ -39,6 +39,7 @@ vg.to.first.best.tg = function(vg,..., tg.id=paste0(vg$gameId,"_FirstBest_", vg$
   tg = vg.to.tg(vg,..., add.sg=add.sg, add.spi=add.spi, add.spo=add.spo)
   tg$tg.id = tg.id
   tg = set.tg.welfare(tg)
+  tg$is.first.best.tg = TRUE
   tg
 }
 

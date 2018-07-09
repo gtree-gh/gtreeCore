@@ -2,16 +2,22 @@
 % Please edit documentation in R/gambit.r
 \name{cond.eq.outcomes}
 \alias{cond.eq.outcomes}
-\title{return a conditional equilibrium outcome
-cond is a list with variable names and their assumed value
+\title{Return a conditional equilibrium outcome}
+\usage{
+cond.eq.outcomes(eq.li, cond, tg = NULL, oco.df = tg$oco.df,
+  expected = FALSE, remove.duplicate.eq = TRUE)
+}
+\arguments{
+\item{eq.li}{The computed equilibria in gtree form}
+
+\item{cond}{is a list with variable names and their assumed value
 we only pick rows from oco.df in which the condition is satisfied
 we set the probabilities of the conditioned variable values to 1}
-\usage{
-cond.eq.outcomes(eq.li, cond, tg = NULL, oco.df = tg$oco.df)
+
+\item{expected}{return expected conditional equilibrium outcomes}
+
+\item{remove.duplicate.eq}{remove conditional outcomes that are duplicates but arise in different equilibria (who differ off the conditional path)}
 }
 \description{
-return a conditional equilibrium outcome
-cond is a list with variable names and their assumed value
-we only pick rows from oco.df in which the condition is satisfied
-we set the probabilities of the conditioned variable values to 1
+Return a conditional equilibrium outcome
 }

@@ -9,7 +9,8 @@ get.tg(variant = first.non.null(vg$variant, 1),
   jg.hash = get.jg.hash(jg = jg, rg = rg, vg = vg), jg = NULL, rg = NULL,
   vg = NULL, tg = NULL, games.dir = get.games.dir(project.dir),
   project.dir = get.project.dir(), save.new = TRUE,
-  branching.limit = 10000, msg.fun = NULL, never.load = FALSE)
+  branching.limit = 10000, msg.fun = NULL, never.load = FALSE,
+  filename = NULL)
 }
 \description{
 If the json file has not changed return old .tg file

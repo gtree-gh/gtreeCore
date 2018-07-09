@@ -5,7 +5,8 @@
 \title{compute expected equilibrium outcomes
 taking expectations over moves of nature}
 \usage{
-expected.eq.outcomes(eqo.df, group.vars = c("eq.ind", "eqo.ind"))
+expected.eq.outcomes(eqo.df = NULL, group.vars = c("eq.ind", "eqo.ind"),
+  eq.li = NULL, tg = NULL)
 }
 \description{
 compute expected equilibrium outcomes

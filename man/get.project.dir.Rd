@@ -7,6 +7,8 @@
 get.project.dir(xs = get.xs())
 }
 \description{
-By default the current working directory
-but the gtree GUI can set a different folder
+If the gtreeGUI is running use the project.dir specified
+there.
+Otherwise check getOptions("gtree.project.dir).
+If that is null return the current working directory
 }
