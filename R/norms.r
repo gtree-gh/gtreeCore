@@ -6,12 +6,7 @@ example.norms = function() {
   setwd("D:/libraries/gtree/myproject")
 	gameId = "UG2"
 	vg.org = get.vg(gameId=gameId)
-  tg.org = get.tg(vg=vg.org)
-
-	org.eq = get.eq(tg=tg.org)
-	eq.outcomes(org.eq, tg=tg.org)
-
-	tg = vg.to.complier.tg(vg.org, complierProb=0.01)
+	tg = vg.to.complier.tg(vg.org, complierProb=0.90)
   oco.df = tg$oco.df
 
 	norms = list(
@@ -19,10 +14,11 @@ example.norms = function() {
 	  norm.rule(2,"accept",ifelse(offer>=round(0.5*cake),1,0))
 	)
 
-	tg.norm = fix.tg.actions(tg,fix.li=norms)
+	tg.norm = fix.tg.actions(tg,fix.li=norms, tremble.prob = 1/1000)
 
 	eq.li = get.eq(tg = tg.norm,never.load = TRUE)
-	eo = eq.outcomes(eq.li=eq.li, tg=tg.norm)
+	eo = eq.outcomes(eq.li=eq.li, tg=tg.norm) %>% filter(.prob > 0.01)
+	eo = eo %>% filter(!isComplier1 & !isComplier2)
   eo %>% filter(eqo.ind==1)
 
 }

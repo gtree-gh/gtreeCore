@@ -43,7 +43,7 @@ example.fix.actions = function() {
   eeo = expected.eq.outcomes(eq.li=eq.li, tg=tg.fix)
 }
 
-fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, tg.id = paste0("fixed",tg$tg.id), omit.zero.prob=TRUE) {
+fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, tg.id = paste0("fixed",tg$tg.id), omit.zero.prob=TRUE, tremble.prob=0) {
   restore.point("fix.tg.actions")
 
   # Make copy of tg
@@ -53,7 +53,7 @@ fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, tg.id = paste0
   # Compute lev.li in which actions are transformed to moves of nature
   # as specified by fix.df
   li = lapply(tg$lev.li,function(lev) {
-    lev.action.to.nature(lev=lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob)
+    lev.action.to.nature(lev=lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob)
   })
   lev.li = do.call(c, li)
 
@@ -204,14 +204,14 @@ set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.
 }
 
 
-lev.action.to.nature.fix.li = function(lev,fix.li=NULL, var = NULL,omit.zero.prob=TRUE, lev.li = NULL, ...) {
+lev.action.to.nature.fix.li = function(lev,fix.li=NULL, var = NULL,omit.zero.prob=TRUE, lev.li = NULL, tremble.prob=0, ...) {
   restore.point("lev.action.to.nature.fix.li")
   # We start with an action level
   act.lev = lev
   nat.lev = NULL
   fix.df = fix.li[[1]]
   for (fix.df in fix.li) {
-    lev.li = lev.action.to.nature(act.lev, fix.df=fix.df, var=var, omit.zero.prob = omit.zero.prob)
+    lev.li = lev.action.to.nature(act.lev, fix.df=fix.df, var=var, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob)
     if (lev.li[[1]]$type == "action") {
       act.lev = lev.li[[1]]
       lev.li = lev.li[2]
@@ -252,7 +252,7 @@ merge.fix.actions.nat.levs = function(lev1, lev2) {
 # to moves of nature
 #
 # Does not adapt information set or node numbers
-lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.li = NULL,fix.li=NULL, ...) {
+lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.li = NULL,fix.li=NULL,tremble.prob=0, ...) {
 
   # Only actions can be fixed
   if (lev$type != "action")
@@ -260,7 +260,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
 
   # Vectorized version if fix.li or lev.li is given
   if (!is.null(fix.li))
-    return(lev.action.to.nature.fix.li(lev, var=var, omit.zero.prob=omit.zero.prob, fix.li=fix.li))
+    return(lev.action.to.nature.fix.li(lev, var=var, omit.zero.prob=omit.zero.prob, fix.li=fix.li, tremble.prob=tremble.prob))
 
 
   restore.point("lev.action.to.nature")
@@ -268,7 +268,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
   # Called with a rule instead of a fix.df
   if (!is.data.frame(fix.df)) {
     if ("formula" %in% names(fix.df))
-      return(lev.action.to.nature.by.rule(lev, rule=fix.df))
+      return(lev.action.to.nature.by.rule(lev, rule=fix.df, tremble.prob=tremble.prob))
   }
 
   if (is.null(var))
@@ -387,7 +387,7 @@ get.fix.df.var = function(fix.df) {
 # to moves of nature
 #
 # Does not adapt information set or node numbers
-lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,...) {
+lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,tremble.prob = 0, ...) {
   # Only actions can be fixed
   if (lev$type != "action")
     return(list(lev))
@@ -428,6 +428,12 @@ lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,...) {
   value = eval.on.df(rule$formula, lev.df)
   nat.df$.move.prob = 0
   nat.df$.move.prob[nat.df[[var]] == value] = 1
+
+  if (tremble.prob > 0) {
+    nat.df = nat.df %>% group_by(.node.ind) %>%
+      mutate(.move.prob = (1-tremble.prob)*.move.prob + tremble.prob / n())  %>%
+      ungroup()
+  }
 
   if (omit.zero.prob) {
     lev.df = filter(lev.df, .move.prob >0)
