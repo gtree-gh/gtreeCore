@@ -1,29 +1,83 @@
-# Find first best solution
+# Ability to compute norm equilibria as described in
 #
-# Steps:
-#   1. Change the vg such that the player is 1 in all stages
-#   2. Solve the single player game maximizing the sum of both
-#      players utilities
-
-example.first.best = function() {
+# Moral norms in a partly compliant society, Sebastian Kranz,
+# 2010, Games and Economic Behavior
+example.norms = function() {
   setwd("D:/libraries/gtree/myproject")
-	gameId = "PG"
-	vg = get.vg(gameId=gameId)
-	tg.fb = vg.to.first.best.tg(vg)
-  ise.df = tg.fb$ise.df
-	oco.df = tg.fb$oco.df
-	eq.li = compute.first.best(tg.fb, find.all.eq = TRUE)
+	gameId = "UG2"
+	vg.org = get.vg(gameId=gameId)
+  tg.org = get.tg(vg=vg.org)
 
-  out = expected.eq.outcomes(eq.li=eq.li, tg=tg.fb)
-  out
+	org.eq = get.eq(tg=tg.org)
+	eq.outcomes(org.eq, tg=tg.org)
+
+	tg = vg.to.complier.tg(vg.org, complierProb=0.01)
+  oco.df = tg$oco.df
+
+	norms = list(
+	  norm.rule(1,"offer",round(cake/2)),
+	  norm.rule(2,"accept",ifelse(offer>=round(0.5*cake),1,0))
+	)
+
+	tg.norm = fix.tg.actions(tg,fix.li=norms)
+
+	eq.li = get.eq(tg = tg.norm,never.load = TRUE)
+	eo = eq.outcomes(eq.li=eq.li, tg=tg.norm)
+  eo %>% filter(eqo.ind==1)
+
 }
 
-#' Given a tg that has been created with vg.to.first.best
-#' compute one or all first best strategy profile(s)
-compute.first.best = function(tg.fb, find.all.eq=FALSE) {
-  restore.point("compute.first.best")
-  tg.fb = set.tg.welfare(tg.fb)
-  compute.single.player.eq(tg.fb, player=1, find.all.eq=find.all.eq,util.col = ".welfare")
+
+
+norm.rule = function(player,var, formula, condition=NULL) {
+  formula=substitute(formula)
+  base.cond = parse.as.call(paste0(".player_",player," & isComplier",player))
+  if (!is.null(condition)) {
+    condition = substitute(condition)
+    condition = substitute((a) & (b), list(a=base.cond, b=condition))
+  } else {
+    condition = base.cond
+  }
+  list(var=var, formula=formula, condition=condition)
+}
+
+vg.to.complier.tg = function(vg, complierProb, tg.id=paste0(vg$gameId,"_Complier_",vg$variant),...) {
+  vg.comp = vg.to.complier.vg(vg, complierProb)
+  tg = vg.to.tg(vg.comp,...,add.sg = FALSE,add.spi = FALSE, add.spo = FALSE)
+  tg$tg.id = tg.id
+  tg
+}
+
+vg.to.complier.vg = function(vg, complierProb = 0.5) {
+  restore.point("vg.to.complier.vg")
+  vg$params[["complierProb"]] = complierProb
+
+  # Create for each player a complier stage
+  complier.stages = lapply(1:vg$params$numPlayers, function(player) {
+    stage.var = paste0("isComplier",player)
+    nature = list(list(
+      name = stage.var,
+      set = c(FALSE,TRUE),
+      probs = quote(c(1-complierProb,complierProb))
+    ))
+
+    stage = list(
+      name = "drawComplierTypes",
+      player = player,
+      condition = "",
+      observe = stage.var,
+      nature = nature,
+      compute = list(),
+      actions = list(),
+      waitForPlayers = "",
+      ai.li = list(),
+      stage.vars = list(stage.var),
+      need.vars = stage.var
+    )
+    stage
+  })
+  vg$stages = c(complier.stages, vg$stages)
+  vg
 }
 
 #' Transform a vg to a tg that can be used to quickly compute a first best

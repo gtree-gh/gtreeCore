@@ -36,7 +36,7 @@ tg.msg.fun = function(...) {
 	cat(paste0("\n",...))
 }
 
-vg.to.tg = function(vg, branching.limit = Inf, add.sg=TRUE, add.spi=TRUE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
+vg.to.tg = function(vg, branching.limit = Inf, add.sg=FALSE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
   restore.point("vg.to.tg")
 
 	branching.limit = as.numeric(branching.limit)
@@ -407,9 +407,7 @@ tg.update.stage.knowledge = function(tg, lev, vg.stage, kel) {
     kel$error("Please only use a formula in observe if the observed variables depend on some earlier defined parameter or variable.")
   }
 
-  if (length(unknown <- setdiff(observe, observable))>0) {
-
-
+  if (length(unknown <- setdiff(as.character(observe), observable))>0) {
     kel$error("Your observe formula depends on the variables {{unknown}}, which have not been defined earlier.", unknown=unknown)
   }
 

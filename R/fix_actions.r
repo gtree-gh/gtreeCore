@@ -265,6 +265,12 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
 
   restore.point("lev.action.to.nature")
 
+  # Called with a rule instead of a fix.df
+  if (!is.data.frame(fix.df)) {
+    if ("formula" %in% names(fix.df))
+      return(lev.action.to.nature.by.rule(lev, rule=fix.df))
+  }
+
   if (is.null(var))
     var = get.fix.df.var(fix.df)
 
@@ -374,4 +380,110 @@ get.fix.df.var = function(fix.df) {
 
   cols = setdiff(colnames(fix.df),".prob")
   return(cols[length(cols)])
+}
+
+
+# Transforms some or all nodes of an action level
+# to moves of nature
+#
+# Does not adapt information set or node numbers
+lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,...) {
+  # Only actions can be fixed
+  if (lev$type != "action")
+    return(list(lev))
+
+
+  var = rule$var
+  # A different action than the one fixed
+  if (var!=lev$var)
+    return(list(lev))
+
+  restore.point("lev.action.to.nature.by.rule")
+
+  lev.df = lev$lev.df
+  cols = !str.starts.with(colnames(lev.df),".row.")
+  lev.df = lev.df[,cols]
+  lev.df$.ORG.ROW = seq_len(NROW(lev.df))
+
+  if (!is.null(rule$condition)) {
+    use.row = eval.on.df(rule$condition, lev.df)
+  } else {
+    use.row = rep(TRUE, NROW(lev.df))
+  }
+
+  # Nodes that remain as actions
+  act.df = lev.df[!use.row,, drop=FALSE]
+
+  # Nodes that will become move of nature
+  lev.df = lev.df[use.row,, drop=FALSE]
+
+  # rule does not pick up any rows
+  if (NROW(lev.df)==0) {
+    return(list(lev))
+  }
+
+  cols = setdiff(colnames(lev.df), c(".info.set.ind",".info.set.move.ind", ".info.set",".move.ind",".move.prob"))
+  nat.df = lev.df[,cols]
+
+  value = eval.on.df(rule$formula, lev.df)
+  nat.df$.move.prob = 0
+  nat.df$.move.prob[nat.df[[var]] == value] = 1
+
+  if (omit.zero.prob) {
+    lev.df = filter(lev.df, .move.prob >0)
+  }
+  # Add move.ind based on .node.ind
+  nat.df = nat.df %>% group_by(.node.ind) %>%
+    mutate(.move.ind = seq_len(n())) %>%
+    ungroup()
+
+  # Order columns in original order
+  cols = intersect(colnames(lev.df), colnames(nat.df)) %>%
+      setdiff(c(".prob",".info.set.ind",".info.set.move.ind", ".info.set")) %>%
+      c(".move.prob", ".prob")
+  nat.df = nat.df[,cols]
+
+
+  # Select original rows from know.li
+  # This means the knowledge structure
+  # is assumed not to change.
+  #
+  # The player who has chosen an action before
+  # will also know the outcome of the move of nature
+  #
+  # That is for example neccessary when looking
+  # at norm equilibria
+  nat.know.li = lev$know.li
+  if (NROW(nat.df) < NROW(lev.df)) {
+    nat.know.li = lapply(nat.know.li, function(know.mat) {
+      know.mat[nat.df$.ORG.ROW,,drop=FALSE]
+    })
+  }
+
+  nat.lev = nlist(
+    type="nature",
+    var = var,
+    lev.num = lev$lev.num,
+    stage.num = lev$stage.num,
+    player=0,
+    lev.df=nat.df,
+    know.li = nat.know.li
+  )
+
+  # All nodes where transformed to a move of nature
+  if (NROW(act.df)==0) {
+    return(list(nat.lev))
+  }
+
+  # Some nodes remain actions
+  act.know.li = lapply(lev$know.li, function(know.mat) {
+    know.mat[act.df$.ORG.ROW,,drop=FALSE]
+  })
+  act.lev = lev
+  act.lev$lev.df = act.df
+  act.lev$know.li = act.know.li
+
+  # Return both new nature level
+  # and an level for remaining action nodes
+  return(list(act.lev, nat.lev))
 }
