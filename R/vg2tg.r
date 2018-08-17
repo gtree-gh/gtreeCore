@@ -536,7 +536,7 @@ compute.action.level = function(tg,stage, action,lev.df, know.li, kel) {
 
 # transform a knowledge matrix
 # to a vector of unique information sets
-compute.info.sets = function(lev.df, know.li,var) {
+compute.info.sets = function(lev.df, know.li,var="", just.index=FALSE) {
   restore.point("compute.info.set")
 
   oco.mat = as.matrix(lev.df)
@@ -557,6 +557,10 @@ compute.info.sets = function(lev.df, know.li,var) {
     unique.id = unique(temp.id)
     ise.ind = match(temp.id, unique.id)
     ise.id[rows] = paste0(i,"_",var,"_",ise.ind)
+  }
+  if (just.index) {
+    unique.id = unique(ise.id)
+    ise.id = match(ise.id, unique.id)
   }
   ise.id
 }

@@ -14,16 +14,14 @@ example.norms = function() {
 	  norm.rule(2,"accept",ifelse(offer>=round(0.5*cake),1,0))
 	)
 
-	tg.norm = fix.tg.actions(tg,fix.li=norms, tremble.prob = 1/1000)
+	tg.norm = fix.tg.actions(tg,fix.li=norms, tremble.prob = 1/10000)
 
 	eq.li = get.eq(tg = tg.norm,never.load = TRUE)
-	eo = eq.outcomes(eq.li=eq.li, tg=tg.norm) %>% filter(.prob > 0.01)
+	eo = eq.outcomes(eq.li=eq.li, tg=tg.norm) %>% filter(.prob > 0.001)
 	eo = eo %>% filter(!isComplier1 & !isComplier2)
   eo %>% filter(eqo.ind==1)
 
 }
-
-
 
 norm.rule = function(player,var, formula, condition=NULL) {
   formula=substitute(formula)
