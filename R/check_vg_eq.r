@@ -9,16 +9,17 @@ example.check.vg.eq = function() {
 	gameId = "LargeCournot"
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
+	vg$params$maxCost = 5
   rules = list(
-    action.rule("q1",(100-2*c1)/3),
-    action.rule("q2",(100+c1)/3)
+    action.rule("q1",(100-2*c1)/3+2,fixed=FALSE),
+    action.rule("q2",(100+c1)/3, fixed=TRUE)
   )
   #rules = list(
   #  action.rule("q1",(100-2*c1)/3),
   #  action.rule("q2",(100-q1)/2)
   #)
 
-  check.vg.rules.eq(vg, rules)
+  check.vg.rules.eq(vg, rules,check.all = TRUE)
 
   disable.restore.points(TRUE)
 
@@ -32,15 +33,11 @@ example.check.vg.eq = function() {
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
   rules = list(
-    action.rule("offer",1),
-    action.rule("accept",offer >= 2)
+    action.rule("offer",1, fixed=TRUE),
+    action.rule("accept",(offer >= 2)*1, fixed=!TRUE)
   )
 
-  check.vg.rules.eq(vg, rules)
-
-
-
-
+  check.vg.rules.eq(vg, rules, check.all=TRUE)
 }
 
 check.vg.rules.eq = function(vg, rules, util.funs = NULL, check.all=FALSE, find.best.deviation=TRUE, order=c("random","top-down","bottom-up")[check.all+1], progress.bar=TRUE, return.value=c("info","gain","details")[1]) {
@@ -61,7 +58,7 @@ check.vg.rules.eq = function(vg, rules, util.funs = NULL, check.all=FALSE, find.
 
   # Create a table that references to all possible deviations
   dev.ref = bind_rows(lapply(dev.li, function(dev) {
-    if (is.null((dev))) return(NULL)
+    if (NROW((dev))==0) return(NULL)
     as_data_frame(list(stage.num = dev$.stage.num,.info.set=dev$.info.set,row=1:NROW(dev), group=paste0(dev$.stage.num,"-",dev$.info.set)))
   }))
 
@@ -131,9 +128,12 @@ check.vg.rules.eq = function(vg, rules, util.funs = NULL, check.all=FALSE, find.
   } else if (check.all) {
     # Split dev.ref into groups
     group.li = split(dev.ref, dev.ref$group)
+    devs = vector("list", length(group.li))
+    devs.util = rep(0, length(group.li))
     if (progress.bar)
       pb = utils::txtProgressBar(min=0,max=NROW(group.li),initial = 0)
 
+    num.devs = 0
     for (group.ind in seq_along(group.li)) {
       best.util = -Inf
       best.dev = NULL
@@ -153,11 +153,31 @@ check.vg.rules.eq = function(vg, rules, util.funs = NULL, check.all=FALSE, find.
       }
       found.dev = best.util > rules.util[best.dev$.player]
       if (found.dev) {
-        dev = best.dev
-        break
+        num.devs = num.devs+1
+        devs[[num.devs]] = best.dev
+        devs.util[num.devs] =  best.util
       }
     }
 
+    if (num.devs>0) {
+      infos = lapply(1:num.devs, function(dev.ind) {
+        dev = devs[[dev.ind]]
+        get.play.deviation.info(dev,vg=vg, stage.li=stage.li,dev.util = devs.util[dev.ind], rules.util=rules.util[dev$.player])
+      })
+      info.block = sapply(infos, function(info) paste0(colnames(info), collapse=";"))
+      blocks = unique(info.block)
+      binfos = lapply(blocks, function(block) {
+        restore.point("hdhfkdfhdkfhf")
+        inds = which(info.block == block)
+        bind_rows(infos[inds])
+      })
+      return(list(
+        info = binfos,
+        is.eq=FALSE
+      ))
+    } else {
+      return(nlist(rules.util, is.eq=TRUE))
+    }
   }
   if (progress.bar) close(pb)
 
@@ -171,7 +191,7 @@ check.vg.rules.eq = function(vg, rules, util.funs = NULL, check.all=FALSE, find.
   }
 }
 
-get.play.deviation.info = function(dev, stage.df = stage.li[[dev$.stage.num]], vg, dev.util, rules.util, stage.li=NULL) {
+get.play.deviation.info = function(dev, stage.df = stage.li[[dev$.stage.num]], vg, dev.util=NULL, rules.util=NULL, stage.li=NULL) {
   restore.point("get.play.deviation.info")
   actions = setdiff(colnames(dev),c(".stage.num",".info.set",".player"))
 
@@ -185,15 +205,17 @@ get.play.deviation.info = function(dev, stage.df = stage.li[[dev$.stage.num]], v
   res = cbind(dev[,c(".stage.num",".player")], org[,key.actions], org[,dev.action], dev[,dev.action])
 
   colnames(res)[(-1:0)+NCOL(res)] = paste0(dev.action, c(".rule",".dev"))
-  res = cbind(res, list(util.rule=rules.util,util.dev=dev.util))
+  if (!is.null(dev.util)) {
+    res = cbind(res, list(util.rule=rules.util,util.dev=dev.util))
+  }
   res
 }
 
 
-action.rule = function(var, formula, condition=NULL, stage=NULL) {
+action.rule = function(var, formula, condition=NULL, stage=NULL, fixed=FALSE) {
   formula=substitute(formula)
   condition=substitute(condition)
-  nlist(var, formula, condition, stage)
+  nlist(var, formula, condition, stage, fixed)
 }
 
 
@@ -219,11 +241,11 @@ play.vg.rules.with.deviation = function(dev, rules, stage.li, vg, stage.num=dev$
   play.vg.rules(vg=vg, rules=rules,play=play,start.stage = stage.num+1, make.stage.li=make.stage.li,extra.par=extra.par,pretty.play=pretty.play,...)
 }
 
-vg.stage.deviations = function(stage.num, play=stage.li[[stage.num]], vg, stage.li) {
-  vg.stage.action.sets.by.info.set(stage.num, play, vg, only.deviations=TRUE)
+vg.stage.deviations = function(stage.num, play=stage.li[[stage.num]], vg, stage.li, ignore.fixed=TRUE) {
+  vg.stage.action.sets.by.info.set(stage.num, play, vg, only.deviations=TRUE, ignore.fixed=ignore.fixed)
 }
 
-vg.stage.action.sets.by.info.set = function(stage.num, play, vg, only.deviations=FALSE) {
+vg.stage.action.sets.by.info.set = function(stage.num, play, vg, only.deviations=FALSE, ignore.fixed=FALSE) {
   restore.point("vg.stage.action.sets.by.info.set")
 
   if (is.null(play)) return(NULL)
@@ -231,6 +253,8 @@ vg.stage.action.sets.by.info.set = function(stage.num, play, vg, only.deviations
   play$.stage.num = stage.num
   ise.play = play %>% group_by(.info.set) %>%
     summarise_all(first)
+
+
   stage = vg$stages[[stage.num]]
 
 
@@ -238,6 +262,10 @@ vg.stage.action.sets.by.info.set = function(stage.num, play, vg, only.deviations
     df = remove.cols(ise.play, action$name)
     eval.set.to.df(action$set,df=df,var=action$name)
   }))
+  if (ignore.fixed) {
+    res = filter(res, !.fixed)
+  }
+
 
   res = res[,c(".stage.num", ".info.set", ".player", names(stage$actions))]
   if (only.deviations) {
@@ -250,6 +278,7 @@ vg.stage.action.sets.by.info.set = function(stage.num, play, vg, only.deviations
     mutate(
       .rule.play = ifelse(is.na(.rule.play), FALSE, TRUE)
     )
+
 
   res = res[,c(".stage.num", ".info.set",".player", ".rule.play", names(stage$actions))]
   res
@@ -267,7 +296,7 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
 
   add.info.sets = make.stage.li
   if (make.stage.li) {
-    stage.play.li = vector("list", length(vg$stages))
+    stage.li = vector("list", length(vg$stages))
   }
 
   # In order to check for equilibrium
@@ -288,7 +317,7 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
     if (add.info.sets) {
       play$.info.set = NA
     }
-
+    if (make.stage.li) play$.fixed = FALSE
     if (!is.empty(stage$condition)) {
       play$.omit = !eval.on.df(stage$condition, play)
       omit.play = filter(play,.omit)
@@ -376,8 +405,13 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
         # Evaluate rule for all p
         if (is.null(rows)) {
           play[[var]] = eval.on.df(rule$formula, play)
+          if (make.stage.li & isTRUE(rule$fixed))
+            play$.fixed = TRUE
         } else {
           play[[var]][rows] = eval.on.df(rule$formula, play[rows,,drop=FALSE])
+          if (make.stage.li & isTRUE(rule$fixed))
+            play$.fixed[rows] = TRUE
+
         }
       }
 
@@ -398,7 +432,7 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
     }
 
     if (make.stage.li & length(stage$actions)>0) {
-      stage.play.li[[stage.num]] = play
+      stage.li[[stage.num]] = play
     }
 
   }
@@ -406,7 +440,7 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
     play = remove.cols(play, c(paste0(".player_",1:numPlayers), ".player",".ROW",".info.set"))
   }
   if (make.stage.li) {
-    return(list(stage.li=stage.play.li, play=play))
+    return(list(stage.li=stage.li, play=play))
   }
 
   return(play)
