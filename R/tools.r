@@ -13,9 +13,12 @@ do.call.if.exists = function(what, args, envir=parent.frame()) {
 
 
 is.empty = function(x) {
-  if (length(x)==0) return(TRUE)
+  len = length(x)
+  if (len==0) return(TRUE)
+  if (len>1) return(FALSE)
   if (is.character(x)) {
-    return(str.trim(x)=="")
+    if (x=="") return(TRUE)
+    #return(str.trim(x)=="")
   }
   FALSE
 }

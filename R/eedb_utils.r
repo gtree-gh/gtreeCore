@@ -84,6 +84,13 @@ has.col = function(df, col) {
 }
 
 remove.cols = function(df, col) {
+  # Hard to make it really fast...
+
+  #if (is.character(col)) {
+  #  cols = setdiff(colnames(df),col)
+  #  return(df[cols])
+  #}
+
   ind = match(col, colnames(df))
   ind = ind[!is.na(ind)]
   if (length(ind)>0)
