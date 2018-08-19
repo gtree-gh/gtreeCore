@@ -165,7 +165,7 @@ gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.
   eq.li
 }
 
-gambit.out.txt.to.eq.li = function(txt, tg) {
+gambit.out.txt.to.eq.li = function(txt, tg, compact=FALSE) {
   restore.point("gambit.out.txt.to.eq.li")
 
   # no equilibrium found

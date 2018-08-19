@@ -6,6 +6,55 @@
 example.check.vg.eq = function() {
   setwd("D:/libraries/gtree/myproject")
 
+  gameId = "UltimatumGame"
+	#gameId = "UG2"
+	vg = get.vg(gameId = gameId)
+  tg = get.tg(vg = vg)
+  rules = pure.eq.to.table.rules(get.eq(tg)[[1]], tg=tg,add.stage = TRUE)
+  #rules[[2]]$table$accept[2] = 0
+  check.vg.rules.eq(vg, rules, check.all=TRUE)
+
+
+	rules = list(
+    action.rule("offer",1, fixed=!TRUE),
+    action.rule("accept",(offer >= 2)*1, fixed=!TRUE)
+  )
+
+
+
+  check.vg.rules.eq(vg, rules, check.all=TRUE)
+
+
+
+	gameId = "LargeCournot"
+	#gameId = "UG2"
+	vg = get.vg(gameId = gameId)
+	vg$params$maxCost = 5
+  rules = list(
+    action.rule("q1",(100-2*c1)/3+2,fixed=FALSE),
+    action.rule("q2",(100+c1)/3, fixed=TRUE)
+  )
+  #rules = list(
+  #  action.rule("q1",(100-2*c1)/3),
+  #  action.rule("q2",(100-q1)/2)
+  #)
+
+  check.vg.rules.eq(vg, rules,check.all = TRUE)
+
+  disable.restore.points(TRUE)
+
+  Rprof(tmp <- tempfile())
+  check.vg.rules.eq(vg, rules)
+  Rprof()
+  summaryRprof(tmp)
+
+
+}
+
+
+example.check.vg.eq = function() {
+  setwd("D:/libraries/gtree/myproject")
+
 	gameId = "LargeCournot"
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
@@ -33,7 +82,7 @@ example.check.vg.eq = function() {
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
   rules = list(
-    action.rule("offer",1, fixed=TRUE),
+    action.rule("offer",1, fixed=!TRUE),
     action.rule("accept",(offer >= 2)*1, fixed=!TRUE)
   )
 
@@ -404,11 +453,20 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
 
         # Evaluate rule for all p
         if (is.null(rows)) {
-          play[[var]] = eval.on.df(rule$formula, play)
+          if (!is.null(rule[["table"]])) {
+            play = eval.table.rule.on.df(play,rule)
+          } else {
+            play[[var]] = eval.on.df(rule$formula, play)
+          }
           if (make.stage.li & isTRUE(rule$fixed))
             play$.fixed = TRUE
         } else {
-          play[[var]][rows] = eval.on.df(rule$formula, play[rows,,drop=FALSE])
+          if (!is.null(rule[["table"]])) {
+            play = eval.table.rule.on.df(play,rule,rows)
+          } else {
+            play[[var]][rows] = eval.on.df(rule$formula, play[rows,,drop=FALSE])
+          }
+
           if (make.stage.li & isTRUE(rule$fixed))
             play$.fixed[rows] = TRUE
 
@@ -445,6 +503,27 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
 
   return(play)
 
+}
+
+eval.table.rule.on.df = function(df, rule, rows=NULL) {
+  restore.point("eval.table.rule.on.df")
+  if (!is.null(rows))
+    stop("table rows with condition are not yet implemented.")
+  var = rule$var
+  keys = setdiff(colnames(rule$table), var)
+  if (length(keys)==0) {
+    df[[var]] = rule$table[[var]][1]
+    return(df)
+  } else if (length(keys)==1) {
+    tab.rows = match(df[[keys]], rule$table[[keys]])
+  } else {
+    df.id = paste.matrix.cols(df, keys)
+    rule.id = paste.matrix.cols(rule$table, keys)
+    tab.rows = match(df.id, rule.id)
+  }
+  use.rows = !is.na(tab.rows)
+  df[[var]][use.rows] = rule$table[[var]][ tab.rows[use.rows] ]
+  return(df)
 }
 
 add.call.players.to.df =  function(call,df,numPlayers) {
