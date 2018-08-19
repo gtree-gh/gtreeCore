@@ -21,7 +21,7 @@ example.table.rule = function() {
 
 #' Transform a list of pure equilibria into a table-rule representation
 pure.eq.li.to.tables = function(eq.li, tg, ignore.keys = names(tg$params)) {
-  lapply(eq.li, pure.eq.to.table.rule, tg=tg, ignore.keys = ignore.keys, as.rules=as.rules)
+  lapply(eq.li, pure.eq.to.tables, tg=tg, ignore.keys = ignore.keys)
 }
 
 
@@ -79,12 +79,12 @@ pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params)) {
 }
 
 #' Transform a pure equilibrium into a table-rules representation
-pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.stage=TRUE) {
+pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.stage=TRUE, fixed=FALSE) {
   restore.point("pure.eq.to.table.rules")
   ise.df = tg$ise.df
   stage.df = tg$stage.df
   lev.num = 1
-  li = lapply(tg$action.levels, function(lev.num) {
+  rules = lapply(tg$action.levels, function(lev.num) {
     lev = tg$lev.li[[lev.num]]
     action = lev$var
 
@@ -95,25 +95,24 @@ pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.st
     know.var.groups = unique(lev.df$.know.var.group)
 
     if (length(know.var.groups)>1) {
-      rules = lapply(know.var.groups, function(.know.var.group) {
+      tables = lapply(know.var.groups, function(.know.var.group) {
         know.vars = lev$know.var.li[[.know.var.group]]
         cols = union(setdiff(know.vars, ignore.keys), action)
         rows = which(lev.df$.know.var.group == .know.var.group)
-        rule=list(var=action, table=lev.df[rows,cols])
-        if (add.stage) rule$stage = tg$stages[[lev$stage.num]]$name
-        rule
+        lev.df[rows,cols]
       })
+      rule=list(var=action,fixed=fixed, tables=tables)
+      if (add.stage) rule$stage = tg$stages[[lev$stage.num]]$name
     } else {
       .know.var.group = know.var.groups
       know.vars = lev$know.var.li[[.know.var.group]]
       cols = union(setdiff(know.vars, ignore.keys), action)
-      rule=list(var=action, table=lev.df[,cols])
+      rule=list(var=action,fixed=fixed, tables=list(lev.df[,cols]))
       if (add.stage) rule$stage = tg$stages[[lev$stage.num]]$name
-      rules = list(rule)
     }
-    rules
+    rule
   })
-  do.call(c, li)
+  rules
 }
 
 

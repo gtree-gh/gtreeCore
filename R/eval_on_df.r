@@ -139,3 +139,57 @@ old.eval.set.on.df = function(set, df) {
 
 
 }
+
+
+
+eval.key.tables.to.df = function(df, tables, rows=NULL,...) {
+  restore.point("eval.key.tables.on.df")
+  for (table in tables) {
+    df = eval.key.table.to.df(df, table, rows=rows,...)
+  }
+  return(df)
+}
+
+#' The last column of table is the variable that shall be assigned to df
+#'
+#' The other columns (possible none) are keys that are used to match the rows
+#' of df, where the table variable shall be assigned to.
+eval.key.table.to.df = function(df, table, var = colnames(table)[NCOL(table)], rows=NULL) {
+  restore.point("eval.key.table.on.df")
+  if (!is.null(rows))
+    stop("table rows with condition are not yet implemented.")
+  if (!has.col(df,var))
+    df[[var]] = NA
+
+  keys = setdiff(colnames(table), var)
+  if (is.null(rows)) {
+    if (length(keys)==0) {
+      df[[var]] = table[[var]][1]
+      return(df)
+    } else if (length(keys)==1) {
+      tab.rows = match(df[[keys]], table[[keys]])
+    } else {
+      df.id = paste.matrix.cols(df, keys)
+      table.id = paste.matrix.cols(table, keys)
+      tab.rows = match(df.id, table.id)
+    }
+    use.rows = !is.na(tab.rows)
+    df[[var]][use.rows] = table[[var]][ tab.rows[use.rows] ]
+  } else {
+    if (length(keys)==0) {
+      df[rows,var] = table[[var]][1]
+      return(df)
+    } else if (length(keys)==1) {
+      tab.rows = match(df[[keys]][rows], table[[keys]])
+    } else {
+      df.id = paste.matrix.cols(df, keys)[rows]
+      table.id = paste.matrix.cols(table, keys)
+      tab.rows = match(df.id, table.id)
+    }
+    use.rows = !is.na(tab.rows)
+    df[[var]][rows[use.rows]] = table[[var]][ tab.rows[use.rows] ]
+  }
+
+
+  return(df)
+}

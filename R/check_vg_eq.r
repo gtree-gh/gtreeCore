@@ -10,9 +10,15 @@ example.check.vg.eq = function() {
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
   tg = get.tg(vg = vg)
-  rules = pure.eq.to.table.rules(get.eq(tg)[[1]], tg=tg,add.stage = TRUE)
-  #rules[[2]]$table$accept[2] = 0
+  eq.li = get.eq(tg)
+  rules = pure.eq.to.table.rules(eq.li[[1]], tg=tg,add.stage = TRUE)
+  rules[[2]]$tables[[1]]$accept[2] = 0
   check.vg.rules.eq(vg, rules, check.all=TRUE)
+
+  rvg = set.vg.rules(vg, rules[2])
+  rtg = vg.to.tg(rvg,branching.limit = 10000)
+  req.li = get.eq(rtg, never.load = TRUE,save.new = FALSE)
+  pure.eq.li.to.tables(req.li,rtg)
 
 
 	rules = list(
@@ -453,16 +459,16 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
 
         # Evaluate rule for all p
         if (is.null(rows)) {
-          if (!is.null(rule[["table"]])) {
-            play = eval.table.rule.on.df(play,rule)
+          if (!is.null(rule[["tables"]])) {
+            play = eval.key.tables.to.df(play,rule$tables,var=rule$var)
           } else {
             play[[var]] = eval.on.df(rule$formula, play)
           }
           if (make.stage.li & isTRUE(rule$fixed))
             play$.fixed = TRUE
         } else {
-          if (!is.null(rule[["table"]])) {
-            play = eval.table.rule.on.df(play,rule,rows)
+          if (!is.null(rule[["tables"]])) {
+            play = eval.key.table.to.df(play,rule$tables,var=rule$var, rows=rows)
           } else {
             play[[var]][rows] = eval.on.df(rule$formula, play[rows,,drop=FALSE])
           }
@@ -505,26 +511,6 @@ play.vg.rules  = function(vg, rules=vg$rules, extra.par = list(), make.stage.li 
 
 }
 
-eval.table.rule.on.df = function(df, rule, rows=NULL) {
-  restore.point("eval.table.rule.on.df")
-  if (!is.null(rows))
-    stop("table rows with condition are not yet implemented.")
-  var = rule$var
-  keys = setdiff(colnames(rule$table), var)
-  if (length(keys)==0) {
-    df[[var]] = rule$table[[var]][1]
-    return(df)
-  } else if (length(keys)==1) {
-    tab.rows = match(df[[keys]], rule$table[[keys]])
-  } else {
-    df.id = paste.matrix.cols(df, keys)
-    rule.id = paste.matrix.cols(rule$table, keys)
-    tab.rows = match(df.id, rule.id)
-  }
-  use.rows = !is.na(tab.rows)
-  df[[var]][use.rows] = rule$table[[var]][ tab.rows[use.rows] ]
-  return(df)
-}
 
 add.call.players.to.df =  function(call,df,numPlayers) {
   restore.point("add.call.players.to.df")
@@ -620,4 +606,37 @@ vg.play.expected.utility = function(play, util.funs=NULL, numPlayers = sum(str.s
   }))
   names(utils) = util.cols
   utils
+}
+
+
+#' Replace actions by transformations described by rules
+#'
+#'
+#' If we have a rule for a stage all actions with the rule variable
+#' will be replaced. There can be at most one rule for each
+#' stage-action pair
+#'
+#' Note that only rules that specify a stage are considered.
+set.vg.rules = function(vg, rules, warn=TRUE) {
+  restore.point("set.vg.rules")
+
+  rule = rules[[1]]
+  for (rule in rules) {
+    if (is.null(rule$stage)) {
+      if (warn) warning(paste0("Rule for action ", rule$var, " does not specify a stage and is ignored."))
+      next
+    }
+    stage = vg$stages[[rule$stage]]
+    if (is.null(stage)) stop("Stage ", rule$stage, " does not exist in the vg.")
+
+    if (length(stage$nature)>0) stop(paste0("Unfortunately, it is not possible to replace an action by a rule in a stage that has move of natures (here stage ", stage$name,"). Please change your game such that you add an additional stage before the current stage, where you specify the move of nature."))
+
+    action.ind = match(rule$var, names(stage$actions))
+    stage$actions = stage$actions[-action.ind]
+    comp.add = list(list(name=rule$var, formula=rule$formula, tables=rule$tables))
+    names(comp.add) = rule$var
+    stage$compute = c(stage$compute, comp.add)
+    vg$stages[[rule$stage]] = stage
+  }
+  vg
 }

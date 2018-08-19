@@ -154,14 +154,22 @@ set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.
   for (tr in transformations) {
     # Formula applies to all rows
     if (is.null(tr$cond)) {
-      stage.df[[tr$var]] = eval.on.df(call = tr$formula,stage.df)
-
+      if (is.null(tr$tables)) {
+        stage.df[[tr$var]] = eval.on.df(call = tr$formula,stage.df)
+      } else {
+        stage.df = eval.key.tables.to.df(stage.df, tr$tables, var=tr$var)
+      }
     # Transformation applies only to a subset of rows
     } else {
       rows = eval.on.df(tr$cond, stage.df)
       if (!tr$var %in% colnames(stage.df))
         stage.df[[tr$var]] = NA
-      stage.df[rows,tr$var] = eval.on.df(tr$cond, stage.df[rows,,drop=FALSE])
+      if (is.null(tr$tables)) {
+        stage.df[rows,tr$var] = eval.on.df(tr$cond, stage.df[rows,,drop=FALSE])
+      } else {
+        stage.df = eval.key.tables.to.df(stage.df, tr$tables, var=tr$var, rows=rows)
+      }
+
     }
   }
 

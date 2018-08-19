@@ -36,7 +36,7 @@ tg.msg.fun = function(...) {
 	cat(paste0("\n",...))
 }
 
-vg.to.tg = function(vg, branching.limit = Inf, add.sg=FALSE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
+vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
   restore.point("vg.to.tg")
 
 	branching.limit = as.numeric(branching.limit)
@@ -738,14 +738,19 @@ compute.transformation.level = function(tg,stage, vg.stage, trans, lev.df, know.
   lev.df$.node.ind = seq.int(NROW(lev.df))
 
   # eval formula on df
-  if (!is.call(trans$formula) &!is.name(trans$formula)) {
-    val = trans$formula
+  #
+  if (!is.null(trans$tables)) {
+    lev.df = eval.key.tables.to.df(lev.df,trans$tables)
   } else {
-    val = eval.on.df(trans$formula, lev.df)
+    if (!is.call(trans$formula) &!is.name(trans$formula)) {
+      val = trans$formula
+    } else {
+      val = eval.on.df(trans$formula, lev.df)
+    }
+    lev.df[[var]] = val
   }
 
 
-  lev.df[[var]] = val
 
   # update knowledge matrices
   know.li = lapply(seq_along(know.li), function(i) {
@@ -756,7 +761,7 @@ compute.transformation.level = function(tg,stage, vg.stage, trans, lev.df, know.
   # facilitate later modifications of the tg game
   cond = vg.stage$cond
   if (!is.name(cond) | is.call(cond)) cond = NULL
-  tg$transformations[[length(tg$transformations)+1]] = list(var=var,cond=cond, formula=trans$formula )
+  tg$transformations[[length(tg$transformations)+1]] = list(var=var,cond=cond, formula=trans$formula, tables=trans$tables )
 
   lev = nlist(
     type="transformation",
