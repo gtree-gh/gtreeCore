@@ -280,7 +280,7 @@ tg.compute.stage.condition = function(tg, stage, vg.stage, prev.stage.df, prev.k
   cond = vg.stage$condition
   if (!is.call(cond) &!is.name(cond)) {
     # no condition
-    if (identical(str.trim(vg.stage$condition), "")) {
+    if (is.empty(cond)) {
       stage$ignore.rows = NULL
       stage$stage.df = prev.stage.df
       stage$know.li = prev.know.li

@@ -125,7 +125,7 @@ expected.eq.outcomes = function(eqo.df=NULL, group.vars=c("eq.ind", "eqo.ind"),e
 
 
 #' Finds one or all mixed strategy equilibria
-gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.name(tg), efg.dir=get.efg.dir(tg$gameId), gambit.dir="", solver=NULL, eq.dir = get.eq.dir(tg$gameId), save.eq = TRUE, solvemode=NULL) {
+gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.name(tg), efg.dir=get.efg.dir(tg$gameId), gambit.dir="", solver=NULL, eq.dir = get.eq.dir(tg$gameId), save.eq = FALSE, solvemode=NULL) {
 
   restore.point("gambit.solve.eq")
 
@@ -137,6 +137,15 @@ gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.
 	}
 
 	solver = get.gambit.solver(solver=solver, mixed=mixed, just.spe=just.spe, solvemode=solvemode)
+
+	# Create temporary efg.file
+  # if efg file does not exist
+	use.temp.dir = FALSE
+	if (!file.exists(file.path(efg.dir, efg.file))) {
+	  efg.dir = tempdir()
+	  use.temp.dir = TRUE
+	  tg.to.efg(tg, path=efg.dir,file = efg.file)
+	}
 
 	#solver = "gambit-enumpure -q -P -D"
   start.time = Sys.time()
@@ -152,7 +161,7 @@ gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.
   if (length(res)==0)
     return(NULL)
 
-  eq.li = gambit.out.txt.to.eq.li(res, tg=tg)
+  eq.li = gambit.out.txt.to.eq.li(res, tg=tg, efg.move.inds=compute.efg.move.inds(tg=tg, efg.file=file.path(efg.dir,efg.file)))
 
   solve.time = Sys.time()-start.time
   attr(eq.li,"solve.time") = solve.time
@@ -162,10 +171,14 @@ gambit.solve.eq = function(tg, mixed=FALSE, just.spe=TRUE, efg.file=tg.efg.file.
 	 save.eq.li(eq.li=eq.li, eq.id=eq.id,eq.dir=eq.dir,tg=tg)
   }
 
+  if (use.temp.dir) {
+    file.remove(file.path(efg.dir,efg.file))
+  }
+
   eq.li
 }
 
-gambit.out.txt.to.eq.li = function(txt, tg, compact=FALSE) {
+gambit.out.txt.to.eq.li = function(txt, tg, compact=FALSE, efg.move.inds=NULL) {
   restore.point("gambit.out.txt.to.eq.li")
 
   # no equilibrium found
@@ -200,7 +213,7 @@ gambit.out.txt.to.eq.li = function(txt, tg, compact=FALSE) {
   et.ind = which(tg$et.mat<0)
   i = 1
   eq.li = lapply(seq_along(ceq.li), function(i) {
-  	ceq.to.eq.mat(ceq = ceq.li[[i]],eq.ind=i, et.ind=et.ind, tg=tg)
+  	ceq.to.eq.mat(ceq = ceq.li[[i]],eq.ind=i, et.ind=et.ind, tg=tg, efg.move.inds=efg.move.inds)
   })
 
 

@@ -26,3 +26,45 @@ print.gtree_tg = function(tg) {
 		cat(paste0("\n  - ",no.sp, " strategy profiles (backward induction)"))
   }
 }
+
+print.gtree_vg = function(vg) {
+  cat(paste0("\nStage-form game (vg): ", vg$gameId, if (!is.empty(vg$variant)) paste0("_",vg$variant)))
+
+  cat(paste0("\n\nParameters: ", paste0(names(vg$params),"=",vg$params, collapse=", ")))
+
+  for (stage in vg$stages) {
+    cat("\n")
+    print.gtree_stage(stage)
+  }
+}
+
+print.gtree_stage = function(stage) {
+  #cat(paste0("\nStage: ", stage$name))
+  cat(paste0("\n", stage$name))
+
+  if (!is.empty(stage$player))
+    cat(paste0("\n  Player: ", form2string(stage$player)))
+
+  if (!is.empty(stage$condition))
+    cat(paste0("\n  Condition: ", form2string(stage$condition)))
+
+  if (!is.empty(stage$observe))
+    cat(paste0("\n  Observe: ", form2string(stage$observe)))
+
+  for (x in stage$compute)
+    cat(paste0("\n  Compute ", x$name, if (!is.null(x$tables)) " specified by tables." else paste0(" = ", form2string(x$formula))))
+  for (x in stage$nature)
+    cat(paste0("\n  Nature ", x$name, " in ", form2string(x$set)), ", Prob = ",form2string(x$probs))
+  for (x in stage$actions)
+    cat(paste0("\n  Action ", x$name, " in ", form2string(x$set)))
+
+
+}
+
+form2string = function(x) {
+  if (is.call(x)) {
+    return(capture.output(print(x)))
+  }
+  paste0(as.character(x), collapse=", ")
+}
+

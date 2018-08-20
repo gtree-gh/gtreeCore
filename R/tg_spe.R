@@ -39,6 +39,52 @@ examples.make.tg.spe = function() {
 }
 
 
+gtree.solve.spe = solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId), save.eq=FALSE) {
+	restore.point("solve.all.tg.spe")
+
+
+	compute.tg.fields.for.internal.solver(tg)
+
+	start.time = Sys.time()
+
+
+	# solve via backward induction
+	.sg.inds = rev(unique(tg$sg.df$.sg.ind))
+
+	tg$spe.li = vector("list", length(.sg.inds))
+
+	for (.sg.ind in .sg.inds) {
+		tg$spe.li[[.sg.ind]] = solve.sg.spe(.sg.ind = .sg.ind, tg=tg)
+	}
+	tg$eq.li = tg.spe.li.to.eq.li(spe.li=tg$spe.li, tg=tg)
+
+	solve.time = Sys.time()-start.time
+  attr(tg$eq.li,"solve.time") = solve.time
+
+
+	if (save.eq) {
+		eq.id = get.eq.id(tg=tg,solvemode="spe_xs")
+		save.eq.li(eq.li=tg$eq.li, tg=tg, eq.id=eq.id, eq.dir = eq.dir)
+	}
+
+	invisible(tg$eq.li)
+}
+
+
+compute.tg.fields.for.internal.solver = function(tg) {
+  if (is.null(tg$sg.df)) {
+    compute.tg.subgames(tg)
+  }
+  if (is.null(tg$spi.li)) {
+    make.tg.spi.li(tg)
+  }
+
+  if (is.null(tg$spo.li)) {
+    make.tg.spo.li(tg)
+  }
+}
+
+
 
 clear.tg.spi.li = function(tg) {
   tg$spi.li = NULL
@@ -256,40 +302,7 @@ sp.to.sp_i = function(player = 1,sp, spi) {
 	sp_i
 }
 
-get.tg.spo.li = function(tg) {
-	make.tg.spo.li(tg)
-}
 
-solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId), save.eq=TRUE) {
-	restore.point("solve.all.tg.spe")
-
-	start.time = Sys.time()
-
-	if (is.null(tg[["spo.li"]])) {
-		get.tg.spo.li(tg)
-	}
-
-	# solve via backward induction
-	.sg.inds = rev(unique(tg$sg.df$.sg.ind))
-
-	tg$spe.li = vector("list", length(.sg.inds))
-
-	for (.sg.ind in .sg.inds) {
-		tg$spe.li[[.sg.ind]] = solve.sg.spe(.sg.ind = .sg.ind, tg=tg)
-	}
-	tg$eq.li = tg.spe.li.to.eq.li(spe.li=tg$spe.li, tg=tg)
-
-	solve.time = Sys.time()-start.time
-  attr(tg$eq.li,"solve.time") = solve.time
-
-
-	if (save.eq) {
-		eq.id = get.eq.id(tg=tg,solvemode="spe_xs")
-		save.eq.li(eq.li=tg$eq.li, tg=tg, eq.id=eq.id, eq.dir = eq.dir)
-	}
-
-	invisible(tg$eq.li)
-}
 
 #
 spo.to.speu = function(spo.df, tg=NULL, add.outcomes = FALSE) {

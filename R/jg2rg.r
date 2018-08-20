@@ -250,7 +250,7 @@ jg.parse.formula = function(str, values, eval=!missing(values), need.quotes=FALS
   }
   # a true formula
   org.str = str
-  str = rewrite.if.formula(str)
+  #str = rewrite.if.formula(str)
   str = substring(str,2)
   call = parse.as.call(text=str)
   if (!eval) return(call)
