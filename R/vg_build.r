@@ -72,6 +72,7 @@ example.new.vg = function() {
   unique(tg$oco.df$c1)
   tg = vg.to.tg(vg,add.sg = TRUE)
   tg
+
   # Internal solver
   eq.li = gtree.solve.spe(tg=tg)
   # Gambit

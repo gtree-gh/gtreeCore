@@ -139,12 +139,22 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, ad
 # will be called after all stages are parsed
 compute.tg.et.oco.etc = function(tg) {
 	restore.point("compute.tg.et.oco.etc")
-  df = tg$stage.df
 
-  # sort oco.df
+  # sort stage.df and oco.df
+  # important stage.df and oco.df must
+  # have same ordering!
+  # Unfortunately, by changing the order
+  # we will use more memory,
+  # since stage.df has overlap with
+  # the last lev.df
+  #
+  # However, I think we need
+  # this ordering.
   order.cols = paste0(".row.", seq_along(tg$lev.li))
-  if (all(order.cols %in% colnames(df)))
-  	df = arrange_(df,.dots = order.cols)
+  if (all(order.cols %in% colnames(tg$stage.df)))
+  	tg$stage.df = arrange_(tg$stage.df,.dots = order.cols)
+
+  df = tg$stage.df
 
   tg$lev.vars = unique(sapply(tg$lev.li, function(lev) lev$var))
   tg$vars = unique(c(names(tg$params), tg$lev.vars))

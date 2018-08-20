@@ -83,7 +83,7 @@ pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.st
   restore.point("pure.eq.to.table.rules")
   ise.df = tg$ise.df
   stage.df = tg$stage.df
-  lev.num = 1
+  lev.num = tg$action.levels[1]
   rules = lapply(tg$action.levels, function(lev.num) {
     lev = tg$lev.li[[lev.num]]
     action = lev$var
