@@ -1,0 +1,4 @@
+example.new.vg = function() {
+
+
+}

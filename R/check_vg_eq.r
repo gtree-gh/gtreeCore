@@ -9,7 +9,8 @@ example.check.vg.eq = function() {
   gameId = "UltimatumGame"
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
-  tg = get.tg(vg = vg)
+  tg = get.tg(vg = vg, never.load = TRUE)
+  tg
   eq.li = get.eq(tg)
   rules = pure.eq.to.table.rules(eq.li[[1]], tg=tg,add.stage = TRUE)
   rules[[2]]$tables[[1]]$accept[2] = 0
@@ -32,9 +33,11 @@ example.check.vg.eq = function() {
 
 
 
-	gameId = "LargeCournot"
+	gameId = "Cournot"
 	#gameId = "UG2"
 	vg = get.vg(gameId = gameId)
+	tg = vg.to.tg(vg, branching.limit = 10000)
+	tg
 	vg$params$maxCost = 5
   rules = list(
     action.rule("q1",(100-2*c1)/3+2,fixed=FALSE),

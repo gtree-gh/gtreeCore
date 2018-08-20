@@ -132,6 +132,7 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, ad
 	 msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": completely generated.")
 
 	tg$ok = TRUE
+	class(tg) = c("gtree_tg","environment")
   return(tg)
 }
 
