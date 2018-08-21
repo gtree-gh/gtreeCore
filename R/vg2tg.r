@@ -141,6 +141,7 @@ compute.tg.et.oco.etc = function(tg) {
 	restore.point("compute.tg.et.oco.etc")
 
   df = tg$stage.df
+  num.lev = length(tg$lev.li)
   # We need to reorder oco.df
   # in order to convert correctly
   # to efg files

@@ -9,10 +9,15 @@ print.gtree_tg = function(tg) {
 	  prod(tg$ise.df$.num.moves[tg$ise.df$.player==i])
 	})
 
-  cat(paste0("\nTableform game: ", tg$tg.id, " (", format(object.size(as.list(tg)), units="auto"),")\n"))
-  cat(paste0("\n  - ",no.ise, " information sets (", tg$numPlayers, " players)"))
-  cat(paste0("\n  - ",paste0(num.strat,collapse=" * ")," = " ,num.all.sp, " strategy profiles (normal form)"))
+	num.ise = sapply(1:tg$numPlayers, function(i) {
+	  n_distinct(tg$ise.df$.info.set[tg$ise.df$.player==i])
+	})
+
+
+  cat(paste0("\nTableform game: ", tg$tg.id, " (ca. ", format(object.size(as.list(tg))-object.size(tg$stage.df), units="auto"),")\n"))
   cat(paste0("\n  - ",no.oco, " possible outcomes"))
+  cat(paste0("\n  - ", no.ise, " information sets (", paste0(num.ise,collapse=" + "),")"))
+  cat(paste0("\n  - " ,num.all.sp, " normal-form strategy profiles (",paste0(num.strat,collapse=" * "),")"))
 
   if (is.null(tg$sg.df)) {
     cat(paste0("\n\n  -- Subgames not yet computed ---"))
@@ -22,8 +27,7 @@ print.gtree_tg = function(tg) {
 		no.sp = format(sum(tg$sg.df$.num.strats.without.desc), big.mark=" ",scientific = 9)
 
 		cat(paste0("\n  - ",no.sg, " subgames"))
-		cat(paste0("\n  - ",no.all.sp, " strategy profiles (normal-form)"))
-		cat(paste0("\n  - ",no.sp, " strategy profiles (backward induction)"))
+		cat(paste0("\n  - ",no.sp, " strategy profiles with backward induction"))
   }
 }
 

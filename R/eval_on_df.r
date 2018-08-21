@@ -20,8 +20,6 @@ eval.set.to.df = function(call, df, var, expand=TRUE, params=NULL) {
   if (length(params)>0)
     call = substitute.call(call, params)
 
-
-
   # reduce df to unique combination of used variables
   vars = find.variables(call)
   if (length(vars)==0) {
