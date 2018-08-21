@@ -27,7 +27,7 @@ pure.eq.li.to.tables = function(eq.li, tg, ignore.keys = names(tg$params)) {
 
 
 #' Transform a pure equilibrium into an action-keys-table representation
-pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params)) {
+pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params), reduce.tables=TRUE) {
   restore.point("pure.eq.to.tables")
   ise.df = tg$ise.df
   stage.df = tg$stage.df
@@ -48,13 +48,18 @@ pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params)) {
         know.vars = lev$know.var.li[[.know.var.group]]
         cols = union(setdiff(know.vars, ignore.keys), action)
         rows = which(lev.df$.know.var.group == .know.var.group)
-        lev.df[rows, cols]
+        table = lev.df[rows,cols]
+        if (reduce.tables) table = reduce.key.table(table)
+        table
+
       }))
     } else {
       .know.var.group = know.var.groups
       know.vars = lev$know.var.li[[.know.var.group]]
       cols = union(setdiff(know.vars, ignore.keys), action)
       key.df = lev.df[, cols]
+      if (reduce.tables) key.df = reduce.key.table(key.df)
+
     }
     key.df
   })
@@ -79,7 +84,7 @@ pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params)) {
 }
 
 #' Transform a pure equilibrium into a table-rules representation
-pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.stage=TRUE, fixed=FALSE) {
+pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.stage=TRUE, fixed=FALSE, reduce.tables=TRUE) {
   restore.point("pure.eq.to.table.rules")
   ise.df = tg$ise.df
   stage.df = tg$stage.df
@@ -99,7 +104,9 @@ pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.st
         know.vars = lev$know.var.li[[.know.var.group]]
         cols = union(setdiff(know.vars, ignore.keys), action)
         rows = which(lev.df$.know.var.group == .know.var.group)
-        lev.df[rows,cols]
+        table = lev.df[rows,cols]
+        if (reduce.tables) table = reduce.key.table(table)
+        table
       })
       rule=list(var=action,fixed=fixed, tables=tables)
       if (add.stage) rule$stage = tg$stages[[lev$stage.num]]$name
@@ -107,7 +114,10 @@ pure.eq.to.table.rules = function(eq, tg, ignore.keys = names(tg$params), add.st
       .know.var.group = know.var.groups
       know.vars = lev$know.var.li[[.know.var.group]]
       cols = union(setdiff(know.vars, ignore.keys), action)
-      rule=list(var=action,fixed=fixed, tables=list(lev.df[,cols]))
+
+      table = lev.df[,cols]
+      if (reduce.tables) table = reduce.key.table(table)
+      rule=list(var=action,fixed=fixed, tables=list(table))
       if (add.stage) rule$stage = tg$stages[[lev$stage.num]]$name
     }
     rule
@@ -155,4 +165,34 @@ is.monotone.predictor = function(x,y, df = as_data_frame(list(x=x,y=y))) {
   df = df[ord,]
   is.highest = which(!is.true(lead(df[[2]]) == df[[2]]))
   n_distinct(df[[2]][is.highest]) == length(is.highest)
+}
+
+reduce.key.table = function(table, var=colnames(table)[NCOL(table)]) {
+  if (NROW(table)<=1) return(table)
+
+  # All variables have the same number
+  if (n_distinct(table[[var]])==1) {
+    return(table[1,var])
+  }
+
+  keys = setdiff(colnames(table), var)
+  if (length(keys)<=1) return(table)
+
+  perf.pred = keys[sapply(keys, function(key) {
+    is.perfect.predictor(table[[key]],table[[var]])
+  })]
+
+  # Don't simplify beyond perfect predictors
+  if (length(perf.pred)==0) return(table)
+
+  # Select perfect predictor with minimum number
+  # of elements
+  if (length(perf.pred)>1) {
+    len = sapply(perf.pred, function(key) {
+      n_distinc(table[[key]])
+    })
+    perf.pred = perf.pred[which.min(len)]
+  }
+  rows = !duplicated(table[[perf.pred]])
+  return(table[rows,c(perf.pred, var)])
 }

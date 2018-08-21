@@ -30,14 +30,18 @@ example.new.vg = function() {
   )
   tg = vg.to.tg(vg)
   tg
+  eq.li = gtree.solve.spe(tg=tg)
+  expected.eq.outcomes(eq.li=eq.li, tg=tg)
+  pure.eq.to.tables(eq.li[[1]], tg=tg)
+
 
   vg$stages
   setwd("D:/libraries/gtree/myproject")
 
   vg = new.vg(
     gameId = "RandomCostCournot",
-    params = list(numPlayers=2, a=10, qMax=5,
-      c2=0, c1Low=0, c1High=2),
+    params = list(numPlayers=2, a=100, qMax=50,
+      c2=0, c1Low=0, c1High=10),
     stages = list(
       stage("drawCostStage",
         nature = list(
@@ -72,6 +76,9 @@ example.new.vg = function() {
   unique(tg$oco.df$c1)
   tg = vg.to.tg(vg,add.sg = TRUE)
   tg
+  #saveRDS(as.list(tg), "tg.Rds")
+
+  View(memory.list(tg))
 
   # Internal solver
   eq.li = gtree.solve.spe(tg=tg)
@@ -82,7 +89,7 @@ example.new.vg = function() {
   eqo.li = expected.eq.outcomes(eq.li=eq.li, tg=tg)
   eqo.li
 
-  pure.eq.to.tables(eq.li[[1]], tg=tg)
+  pure.eq.to.tables(eq.li[[2]], tg=tg)
   pure.eq.to.table.rules(eq.li[[1]], tg=tg)
 
 }
@@ -152,30 +159,4 @@ stage = function(name, player=NULL, condition=NULL, observe=NULL, compute=NULL, 
     x
   }))
   nlist(name,player,condition,observe, compute,nature, actions,...)
-}
-
-memory.list = function(x) {
-  if (is.environment(x))
-    x = as.list(x)
-
-  x.size = format(object.size(x), units="auto")
-  if (!is.list(x))
-    return(x.size)
-
-  if (length(x)==0) return("0")
-
-  restore.point("fhdfjdhfk")
-
-  # Sort by size
-  sizes = lapply(x, object.size)
-  ord = order(-unlist(sizes))
-  x = x[ord]
-
-  fsizes = lapply(sizes, format, units="auto")
-  kids = lapply(x,memory.list)
-  names(kids) = paste0(names(x),": ", fsizes)
-
-  size.li = list(x.size)
-  names(size.li) = x.size
-  c(size.li,kids)
 }

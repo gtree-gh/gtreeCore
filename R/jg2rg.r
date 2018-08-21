@@ -22,7 +22,7 @@ examples.jg.to.rg = function() {
 
 jg.to.rg = function(jg, stop=gtree.stop.on.error()) {
   restore.point("jg.to.rg")
-  rg = new.env()
+  rg = new.env(parent = emptyenv())
 
   rg$kel = keyErrorLog(stop = stop)
   rg$gameId = jg$gameId

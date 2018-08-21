@@ -45,7 +45,7 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, ad
 	if (is.null(msg.fun)) msg.fun = function(...) {}
 	msg.fun("Compute game tree for ", vg$gameId," variant ", vg$variant,"...")
 
-  tg = new.env()
+  tg = new.env(parent = emptyenv())
   tg$ok = FALSE
   tg$kel = keyErrorLog(stop=stop)
   restore.point("vg.to.tg.inner")
@@ -140,22 +140,25 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, ad
 compute.tg.et.oco.etc = function(tg) {
 	restore.point("compute.tg.et.oco.etc")
 
-  # sort stage.df and oco.df
-  # important stage.df and oco.df must
-  # have same ordering!
-  # Unfortunately, by changing the order
-  # we will use more memory,
-  # since stage.df has overlap with
-  # the last lev.df
-  #
-  # However, I think we need
-  # this ordering.
-  order.cols = paste0(".row.", seq_along(tg$lev.li))
-  if (all(order.cols %in% colnames(tg$stage.df)))
-  	tg$stage.df = arrange_(tg$stage.df,.dots = order.cols)
-
   df = tg$stage.df
+  # We need to reorder oco.df
+  # in order to convert correctly
+  # to efg files
+  order.cols = paste0(".row.", seq_len(num.lev))
+  df = arrange_(df,.dots = order.cols)
 
+  # Drop unnecessary cols to save memory
+  drop.cols = c(".info.set.ind",".node.ind",".info.set.move.ind",".player",paste0(".player_", 1:tg$numPlayers))
+  df = remove.cols(df,drop.cols)
+
+  tg$stage.df = df
+  # Note stage.df can have different rows
+  # than the last lev.df
+  # So we CANNOT set the last
+  # lev.df to this stage.df to share memory
+
+  # Store some variables for fast
+  # reference later
   tg$lev.vars = unique(sapply(tg$lev.li, function(lev) lev$var))
   tg$vars = unique(c(names(tg$params), tg$lev.vars))
 

@@ -1,5 +1,5 @@
 keyErrorLog = function(stop=FALSE, append.char="<br>", line.break.char="<br>") {
-  kel = new.env()
+  kel = new.env(parent = emptyenv())
 
   kel$terminate = FALSE
   kel$append.char = append.char
