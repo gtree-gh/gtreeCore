@@ -70,7 +70,7 @@ make.best.reply.tg = function(tg, eq, player=1, info.set.probs=attr(eq,"info.set
     }
 
 
-    res.lev = lev.action.to.nature(lev, fix.df=fix.df, var=lev$var, omit.zero.prob = omit.zero.prob)
+    res.lev = lev.action.to.nature(lev, fix.df=fix.df, var=lev$var, omit.zero.prob = omit.zero.prob, params=tg$params)
     return(res.lev)
   })
 

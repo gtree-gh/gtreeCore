@@ -40,7 +40,7 @@ example.new.vg = function() {
 
   vg = new.vg(
     gameId = "RandomCostCournot",
-    params = list(numPlayers=2, a=100, qMax=50,
+    params = list(numPlayers=2, a=50, qMax=25,
       c2=0, c1Low=0, c1High=10),
     stages = list(
       stage("drawCostStage",
@@ -57,6 +57,7 @@ example.new.vg = function() {
       ),
       stage("q2Stage",
         player=2,
+        observe="c1",
         actions = list(
           action("q2",~0:qMax)
         )
@@ -82,6 +83,8 @@ example.new.vg = function() {
 
   # Internal solver
   eq.li = gtree.solve.spe(tg=tg)
+
+  spo.li = tg$spo.li
   # Gambit
   eq.li = gambit.solve.eq(tg=tg, save.eq=FALSE)
 
@@ -89,7 +92,7 @@ example.new.vg = function() {
   eqo.li = expected.eq.outcomes(eq.li=eq.li, tg=tg)
   eqo.li
 
-  pure.eq.to.tables(eq.li[[2]], tg=tg)
+  pure.eq.to.tables(eq.li[[1]], tg=tg)
   pure.eq.to.table.rules(eq.li[[1]], tg=tg)
 
 }

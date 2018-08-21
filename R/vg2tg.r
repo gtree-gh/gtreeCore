@@ -305,7 +305,7 @@ tg.compute.stage.condition = function(tg, stage, vg.stage, prev.stage.df, prev.k
 
 
   # rows that satisfy the condition
-  rows = is.true(eval.on.df(cond,prev.stage.df))
+  rows = is.true(eval.on.df(cond,prev.stage.df, params=tg$params))
   stage$ignore.rows = which(!rows)
   # reduce level.df and know mats to those rows
   stage$stage.df = prev.stage.df[rows,,drop=FALSE]
@@ -495,7 +495,7 @@ compute.action.level = function(tg,stage, action,lev.df, know.li, kel) {
 
   # eval set
 
-  lev.df = eval.set.to.df(action$set, lev.df, var)
+  lev.df = eval.set.to.df(action$set, lev.df, var, params=tg$params)
 
 
   lev.df = lev.df %>%
@@ -605,7 +605,7 @@ compute.nature.level = function(tg,stage, randomVar, lev.df, know.li, kel) {
 
 
 
-  lev.df = eval.randomVar.to.df(randomVar$set,randomVar$prob,df = lev.df, var=var,kel = kel,prob.col = ".move.prob")
+  lev.df = eval.randomVar.to.df(randomVar$set,randomVar$prob,df = lev.df, var=var,kel = kel,prob.col = ".move.prob", params=tg$params)
 
   # adapt outcome probs
 	lev.df$.prob = lev.df$.prob * lev.df$.move.prob
@@ -674,7 +674,7 @@ adapt.prob.to.set = function(prob,set) {
   prob
 }
 
-eval.randomVar.to.df = function(set.call, prob.call, df, var, kel, prob.col = ".move.prob") {
+eval.randomVar.to.df = function(set.call, prob.call, df, var, kel, prob.col = ".move.prob", params=NULL) {
   restore.point("eval.randomVar.to.df")
 
   set.vars = NULL
@@ -683,9 +683,17 @@ eval.randomVar.to.df = function(set.call, prob.call, df, var, kel, prob.col = ".
   set.is.call = is(set.call,"call") | is(set.call,"name")
   prob.is.call = is(prob.call,"call") | is(prob.call,"name")
 
-  if (set.is.call) set.vars = find.variables(set.call)
-  if (prob.is.call) prob.vars = find.variables(prob.call)
+  if (set.is.call) {
+    if (length(params)>0)
+      set.call = substitute.call(set.call, params)
+    set.vars = find.variables(set.call)
+  }
+  if (prob.is.call) {
+    if (length(params)>0)
+      prob.call = substitute.call(prob.call, params)
 
+    prob.vars = find.variables(prob.call)
+  }
   vars = c(set.vars, prob.vars)
 
   # set and prob are both defined independently of the data frame
@@ -760,7 +768,7 @@ compute.transformation.level = function(tg,stage, vg.stage, trans, lev.df, know.
     if (!is.call(trans$formula) &!is.name(trans$formula)) {
       val = trans$formula
     } else {
-      val = eval.on.df(trans$formula, lev.df)
+      val = eval.on.df(trans$formula, lev.df, params=tg$params)
     }
     lev.df[[var]] = val
   }

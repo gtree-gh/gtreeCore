@@ -53,7 +53,7 @@ fix.tg.actions = function(tg, fix.df=NULL, var=NULL, fix.li=NULL, tg.id = paste0
   # Compute lev.li in which actions are transformed to moves of nature
   # as specified by fix.df
   li = lapply(tg$lev.li,function(lev) {
-    lev.action.to.nature(lev=lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob)
+    lev.action.to.nature(lev=lev, fix.df=fix.df, var=var, fix.li=fix.li, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob, params=tg$params)
   })
   lev.li = do.call(c, li)
 
@@ -155,17 +155,17 @@ set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.
     # Formula applies to all rows
     if (is.null(tr$cond)) {
       if (is.null(tr$tables)) {
-        stage.df[[tr$var]] = eval.on.df(call = tr$formula,stage.df)
+        stage.df[[tr$var]] = eval.on.df(call = tr$formula,stage.df, params=tg$params)
       } else {
         stage.df = eval.key.tables.to.df(stage.df, tr$tables, var=tr$var)
       }
     # Transformation applies only to a subset of rows
     } else {
-      rows = eval.on.df(tr$cond, stage.df)
+      rows = eval.on.df(tr$cond, stage.df, params=tg$params)
       if (!tr$var %in% colnames(stage.df))
         stage.df[[tr$var]] = NA
       if (is.null(tr$tables)) {
-        stage.df[rows,tr$var] = eval.on.df(tr$cond, stage.df[rows,,drop=FALSE])
+        stage.df[rows,tr$var] = eval.on.df(tr$cond, stage.df[rows,,drop=FALSE], params=tg$params)
       } else {
         stage.df = eval.key.tables.to.df(stage.df, tr$tables, var=tr$var, rows=rows)
       }
@@ -212,14 +212,14 @@ set.new.tg.lev.li = function(tg,lev.li, transformations=tg$transformations, add.
 }
 
 
-lev.action.to.nature.fix.li = function(lev,fix.li=NULL, var = NULL,omit.zero.prob=TRUE, lev.li = NULL, tremble.prob=0, ...) {
+lev.action.to.nature.fix.li = function(lev,fix.li=NULL, var = NULL,omit.zero.prob=TRUE, lev.li = NULL, tremble.prob=0, params=tg$params, tg=NULL, ...) {
   restore.point("lev.action.to.nature.fix.li")
   # We start with an action level
   act.lev = lev
   nat.lev = NULL
   fix.df = fix.li[[1]]
   for (fix.df in fix.li) {
-    lev.li = lev.action.to.nature(act.lev, fix.df=fix.df, var=var, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob)
+    lev.li = lev.action.to.nature(act.lev, fix.df=fix.df, var=var, omit.zero.prob = omit.zero.prob, tremble.prob=tremble.prob, params=params)
     if (lev.li[[1]]$type == "action") {
       act.lev = lev.li[[1]]
       lev.li = lev.li[2]
@@ -260,7 +260,7 @@ merge.fix.actions.nat.levs = function(lev1, lev2) {
 # to moves of nature
 #
 # Does not adapt information set or node numbers
-lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.li = NULL,fix.li=NULL,tremble.prob=0, ...) {
+lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.li = NULL,fix.li=NULL,tremble.prob=0,params=NULL, tg=NULL, ...) {
 
   # Only actions can be fixed
   if (lev$type != "action")
@@ -276,7 +276,7 @@ lev.action.to.nature = function(lev, fix.df,var = NULL,omit.zero.prob=TRUE, lev.
   # Called with a rule instead of a fix.df
   if (!is.data.frame(fix.df)) {
     if ("formula" %in% names(fix.df))
-      return(lev.action.to.nature.by.rule(lev, rule=fix.df, tremble.prob=tremble.prob))
+      return(lev.action.to.nature.by.rule(lev, rule=fix.df, tremble.prob=tremble.prob, params=params))
   }
 
   if (is.null(var))
@@ -395,7 +395,7 @@ get.fix.df.var = function(fix.df) {
 # to moves of nature
 #
 # Does not adapt information set or node numbers
-lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,tremble.prob = 0, ...) {
+lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,tremble.prob = 0, params=tg$params, tg=NULL, ...) {
   # Only actions can be fixed
   if (lev$type != "action")
     return(list(lev))
@@ -414,7 +414,7 @@ lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,tremble.p
   lev.df$.ORG.ROW = seq_len(NROW(lev.df))
 
   if (!is.null(rule$condition)) {
-    use.row = eval.on.df(rule$condition, lev.df)
+    use.row = eval.on.df(rule$condition, lev.df, params=params)
   } else {
     use.row = rep(TRUE, NROW(lev.df))
   }
@@ -433,7 +433,7 @@ lev.action.to.nature.by.rule = function(lev, rule,omit.zero.prob=FALSE,tremble.p
   cols = setdiff(colnames(lev.df), c(".info.set.ind",".info.set.move.ind", ".info.set",".move.ind",".move.prob"))
   nat.df = lev.df[,cols]
 
-  value = eval.on.df(rule$formula, lev.df)
+  value = eval.on.df(rule$formula, lev.df, params=tg$params)
   nat.df$.move.prob = 0
   nat.df$.move.prob[nat.df[[var]] == value] = 1
 

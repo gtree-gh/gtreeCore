@@ -213,15 +213,7 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
   spo$.outcome = outcomes[spo$.outcome]
   spo = arrange(spo,sp,.outcome)
 
-  # TO DO: Need to add .prob to oco.df!
-  #spo = inner_join(spo, select(tg$oco.df,.outcome, .prob, starts_with("payoff_")), by=".outcome")
   spo = inner_join(spo, select(tg$oco.df,.outcome,.prob), by=".outcome")
-
-  # add indices of other player strategy profiles
-  #for (player in 1:tg$params$numPlayers) {
-  #	sp_i = sp.to.sp_i(player=player, sp=spo$sp,spi=spi)
-  #	spo[[paste0("sp_",player)]] = sp_i
-  #}
 
   spo
 
