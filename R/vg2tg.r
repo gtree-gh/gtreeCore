@@ -36,7 +36,7 @@ tg.msg.fun = function(...) {
 	cat(paste0("\n",...))
 }
 
-vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
+vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
   restore.point("vg.to.tg")
 
 	branching.limit = as.numeric(branching.limit)
@@ -68,11 +68,21 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=FALSE, add.spi=FALSE, ad
   tg$transformations = list()
 
 
-  tg$stage.df = as_data_frame(as.data.frame(tg$params,stringsAsFactors = FALSE))
-  tg$stage.df$.prob = 1
+
+  # DO NOT ADD PARAMETERS ANYMORE TO
+  # stage.df to save memory
+
+  tg$stage.df = data_frame(numPlayers=tg$params$numPlayers,.prob=1)
+
+  #tg$stage.df = as_data_frame(as.data.frame(tg$params,stringsAsFactors = FALSE))
+  #tg$stage.df$.prob = 1
+
+  # TO DO: Remove parameters from know.li
   tg$know.li = lapply(1:tg$n,function(i) {
-    mat = matrix(TRUE, 1, length(tg$params))
-    colnames(mat) = setdiff(colnames(tg$stage.df),".prob")
+    #mat = matrix(TRUE, 1, length(tg$params))
+    mat = matrix(TRUE, 1, 1)
+    colnames(mat)="numPlayers"
+    #colnames(mat) = setdiff(colnames(tg$stage.df),".prob")
     mat
   })
 
@@ -467,7 +477,7 @@ compute.action.level = function(tg,stage, action,lev.df, know.li, kel) {
 
   # check if all var in set are defined
   kel$withKey(sub.key = "set",
-    kel.check.call.vars(action$set,names(lev.df),kel=kel)
+    kel.check.call.vars(action$set,c(names(lev.df),names(tg$params)),kel=kel)
   )
 
   tg.check.branching.limit(tg=tg, lev.df = lev.df, kel=kel, stage=stage, var=var)
@@ -564,6 +574,14 @@ compute.info.sets = function(lev.df, know.li,var="", just.index=FALSE) {
     know.mat = know.li[[i]][rows,,drop=FALSE]
     # different knowledge and inf
     cols = intersect(colnames(oco.mat), colnames(know.mat))
+
+    # Nothing has been observed so far
+    if (length(cols)==0) {
+      ise.id[rows] = paste0(i,"_",var,"_",1)
+      next
+    }
+
+
     val.mat = oco.mat[rows,cols, drop=FALSE]
     val.mat[!know.mat[,cols]] = "."
     temp.id = paste.matrix.cols(val.mat)
@@ -589,11 +607,11 @@ compute.nature.level = function(tg,stage, randomVar, lev.df, know.li, kel) {
 
   # check if all var in set are defined
   kel$withKey(sub.key = "set",
-    kel.check.call.vars(randomVar$set,names(lev.df),kel=kel)
+    kel.check.call.vars(randomVar$set,c(names(lev.df),names(tg$params)),kel=kel)
   )
   # check if all var in probs are defined
   kel$withKey(sub.key = "probs",
-    kel.check.call.vars(randomVar$probs,names(lev.df),kel=kel)
+    kel.check.call.vars(randomVar$probs,c(names(lev.df),names(tg$params)),kel=kel)
   )
 
   tg.check.branching.limit(tg=tg, lev.df = lev.df, kel=kel, stage=stage, var=var)
@@ -751,7 +769,7 @@ compute.transformation.level = function(tg,stage, vg.stage, trans, lev.df, know.
 
   # check if all var in formula are defined
   kel$withKey(sub.key = "formula",
-    kel.check.call.vars(trans$formula,names(lev.df),kel=kel)
+    kel.check.call.vars(trans$formula,c(names(lev.df),names(tg$params)),kel=kel)
   )
 
 

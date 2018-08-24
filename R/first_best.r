@@ -48,6 +48,7 @@ vg.to.first.best.tg = function(vg,..., tg.id=paste0(vg$gameId,"_FirstBest_", vg$
   tg$tg.id = tg.id
   tg = set.tg.welfare(tg)
   tg$is.first.best.tg = TRUE
+  class(tg) = c("gtree_fb_tg","gtree_tg","environment")
   tg
 }
 

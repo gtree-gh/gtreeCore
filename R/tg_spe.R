@@ -143,9 +143,24 @@ make.sg.spi = function(.sg.ind=1,tg, include.descendants=FALSE) {
   spi
 }
 
-
-make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi.df  = tg$spi.li[[.sg.ind]], tg) {
+# Create a list with three columns:
+# sp: index of the strategy profile in the subgame
+# .outcome: an outcome row in oco.df
+# .prob: the probability that this outcome
+# will be reached.
+make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi.df  = tg$spi.li[[.sg.ind]], tg, chunk.size= first.non.null(getOption("gtree.spo.chunk.size"), 100000)
+) {
 	restore.point("make.sg.spo.df")
+
+  finished = FALSE
+  on.exit({
+    if (!finished) {
+      msg = "
+      If you have run out of memory, you could try to use gambit as solver, by calling gambit.solve.eq. Gambit requires less memory than gtree's internal solver, but sometimes takes longer to run.\n
+      Alternatively, try to call\n\noptions(gtree.spo.chunk.size=1000)\n\nto reduce the memory requirement of our internal algorithms.\nYou can also set another chunk size than 10000. Smaller chunk sizes require longer run-time though. This may help for moderately larger games. If the game is too large in terms of the number of strategy profiles (with backward induction), also reducing the chunk size won't help."
+      message(msg)
+    }
+  })
 
 	# we need to specify outcomes for each strategy profile
 	# of each subgame
@@ -173,11 +188,17 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 
   moves.df = sp.to.moves(sp = 1:n.sp, spi)
 
+  if (NROW(moves.df)>chunk.size) {
+    spo = make.sg.chunked.spo(sg.df,sgi.df,spi,.info.set.inds,ise.df,outcomes,oco.df,moves.df, tg=tg, chunk.size=chunk.size)
+    finished=TRUE
+    return(spo)
+  }
+
   # This matrix can be quite big
   # If memory is a concern, we may split the matrix
   # and the move.df in different chunks
   # and apply the stuff for each chunk seperately
-  feas.mat = matrix(TRUE,n.sp,n.out )
+  feas.mat <- matrix(TRUE,n.sp,n.out )
 
   ise.ind = 1
   move.ind = 1
@@ -209,6 +230,76 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 
   spo = which(feas.mat,arr.ind = TRUE)
   colnames(spo) = c("sp",".outcome")
+  spo = as.data.frame(spo)
+
+  spo$.outcome = outcomes[spo$.outcome]
+  spo = arrange(spo,sp,.outcome)
+
+  spo = inner_join(spo, select(tg$oco.df,.outcome,.prob), by=".outcome")
+
+  finished = TRUE
+  spo
+
+
+}
+
+
+# Create a list with three columns:
+# sp: index of the strategy profile in the subgame
+# .outcome: an outcome row in oco.df
+# .prob: the probability that this outcome
+# will be reached.
+make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes, oco.df, moves.df, tg, chunk.size=20000) {
+	restore.point("make.sg.spo.df.chunked")
+
+  n.sp = prod(spi$moves)
+  n.ise = NROW(spi)
+  n.out = length(outcomes)
+
+  chunk.starts = seq(1,NROW(moves.df), by=chunk.size)
+
+
+  spo.li = lapply(chunk.starts, function(chunk.start) {
+    chunk.rows = chunk.start:(min(chunk.start+chunk.size-1,NROW(moves.df)))
+
+
+    feas.mat = matrix(TRUE,length(chunk.rows),n.out )
+
+    chunk.moves.df = moves.df[chunk.rows,]
+
+    ise.ind = 1
+    move.ind = 1
+    iso.row = 0
+    for (ise.ind in seq_len(n.ise)) {
+    	# outcome values of the variable
+    	# that is decided at this info set
+    	char.move.vals = as.character(ise.df$.move.vals[[ise.ind]])
+    	var = ise.df$.var[ise.ind]
+    	.char.oco.val = as.character(oco.df[[var]])
+    	is.ise.oco = find.info.set.outcomes(.info.set.ind = ise.df$.info.set.ind[ise.ind],tg = tg, oco.df=oco.df,return.logical = TRUE)
+
+    	# Go through each move in the
+    	# current information set
+      for (move.ind in seq_len(spi$moves[ise.ind])) {
+        iso.row = iso.row + 1
+
+        .char.move.val = char.move.vals[move.ind]
+
+        # infeasible outcomes have a different
+        # value of the info set variable than
+        # the value of the current move
+        infeas = which(is.ise.oco & .char.oco.val != .char.move.val)
+
+        rows = which(chunk.moves.df[,ise.ind]==move.ind)
+        feas.mat[rows,infeas] = FALSE
+      }
+    }
+    spo = which(feas.mat,arr.ind = TRUE)
+    colnames(spo) = c("sp",".outcome")
+    spo[,1] = chunk.rows[spo[,1]]
+    spo
+  })
+  spo = do.call(rbind,spo.li)
   spo = as.data.frame(spo)
   spo$.outcome = outcomes[spo$.outcome]
   spo = arrange(spo,sp,.outcome)
@@ -523,7 +614,7 @@ tg.spe.li.to.eq.li = function(spe.li,tg, .sg.ind=1) {
 
 recursive.speq.to.ceq = function(ceq, speq, .sg.ind, tg, spe.li=tg$spe.li) {
 	#restore.point("recursive.speq.to.ceq")
-	cat("\n.sg.ind = ", .sg.ind, " NROW(ceq) = ",NROW(ceq))
+	#cat("\n.sg.ind = ", .sg.ind, " NROW(ceq) = ",NROW(ceq))
 
 	spi = tg$spi.li[[.sg.ind]]
 

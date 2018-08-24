@@ -31,6 +31,7 @@ rg.to.vg = function(rg, variant=1, stop=gtree.stop.on.error()) {
   vg$stages = rg$stages
   vg = extract.vg.vars.info(vg=vg)
   vg$jg.hash = rg$jg.hash
+  class(vg) = c("gtree_vg","environment")
   return(vg)
 }
 

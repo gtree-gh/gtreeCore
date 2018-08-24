@@ -40,7 +40,7 @@ example.new.vg = function() {
 
   vg = new.vg(
     gameId = "RandomCostCournot",
-    params = list(numPlayers=2, a=50, qMax=25,
+    params = list(numPlayers=2, a=100, qMax=50,
       c2=0, c1Low=0, c1High=10),
     stages = list(
       stage("drawCostStage",
@@ -57,7 +57,7 @@ example.new.vg = function() {
       ),
       stage("q2Stage",
         player=2,
-        observe="c1",
+        #observe="c1",
         actions = list(
           action("q2",~0:qMax)
         )
@@ -77,7 +77,7 @@ example.new.vg = function() {
   unique(tg$oco.df$c1)
   tg = vg.to.tg(vg,add.sg = TRUE)
   tg
-  #saveRDS(as.list(tg), "tg.Rds")
+  saveRDS(as.list(tg), "tg.Rds")
 
   View(memory.list(tg))
 
@@ -95,6 +95,49 @@ example.new.vg = function() {
   pure.eq.to.tables(eq.li[[1]], tg=tg)
   pure.eq.to.table.rules(eq.li[[1]], tg=tg)
 
+
+
+  # Test make.sg.spo
+  vg = new.vg(
+    gameId = "TestStackelberg",
+    params = list(numPlayers=2, a=200, qMax=200),
+    stages = list(
+      stage("q1Stage",
+        player=1,
+        actions = list(
+          action("q1",~0:qMax)
+        )
+      ),
+      stage("q2Stage",
+        player=2,
+        actions = list(
+          action("q2",~0:qMax)
+        )
+      ),
+      stage("PayoffStage",
+        player=1:2,
+        compute=list(
+          Q ~ q1+q2,
+          P ~ a-Q,
+          payoff_1 ~ (P)*q1,
+          payoff_2 ~ (P)*q2
+        )
+      )
+    )
+  )
+  tg = vg.to.tg(vg,add.sg = TRUE)
+  tg
+
+  options(gtree.spo.chunk.size = 1000)
+  compute.tg.fields.for.internal.solver(tg)
+
+  eq.li = gtree.solve.spe(tg=tg)
+  pure.eq.to.tables(eq.li[[1]], tg=tg)
+
+
+  eq.li = gambit.solve.eq(tg=tg, save.eq=FALSE)
+
+  gambit.solve.eq(tg)
 }
 
 #' Create a new game in stage form
