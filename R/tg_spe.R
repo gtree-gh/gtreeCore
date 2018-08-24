@@ -71,16 +71,22 @@ gtree.solve.spe = solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId)
 }
 
 
-compute.tg.fields.for.internal.solver = function(tg) {
+compute.tg.fields.for.internal.solver = function(tg, verbose=TRUE) {
   if (is.null(tg$sg.df)) {
+  	if (verbose) cat("\nCompute subgames...")
     compute.tg.subgames(tg)
+    if (verbose) cat("...", NROW(tg$sg.df), " subgames found.")
   }
   if (is.null(tg$spi.li)) {
     make.tg.spi.li(tg)
   }
 
   if (is.null(tg$spo.li)) {
+    start.time = Sys.time()
+  	if (verbose) cat("\nCompute mapping between strategy profiles and output for each subgame...")
     make.tg.spo.li(tg)
+    if (verbose)
+      cat("done in", format(Sys.time()-start.time))
   }
 }
 
@@ -289,14 +295,16 @@ make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes
     	  # are always ascending
     	  moves = moves.df[1,1]:moves.df[NROW(moves.df),1]
     	} else if (!full.ise[ise.ind]) {
-    	  start = moves.df[1,1]
-    	  end = moves.df[NROW(moves.df),1]
+    	  start = moves.df[1,ise.ind]
+    	  end = moves.df[NROW(moves.df),ise.ind]
     	  if (start <= end) {
     	    moves = start:end
     	  } else {
     	    moves = c(1:end, start:spi$moves[ise.ind])
     	  }
-        #moves = unique(moves.df[,ise.ind])
+    	  cat("\nmoves :", paste0(moves, collapse=", "))
+
+        moves = sort(unique(moves.df[,ise.ind]))
     	} else {
     	  moves = seq_len(spi$moves[ise.ind])
     	}

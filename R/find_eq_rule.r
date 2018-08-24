@@ -32,7 +32,7 @@ pure.eq.to.tables = function(eq, tg, ignore.keys = names(tg$params), reduce.tabl
   ise.df = tg$ise.df
   stage.df = tg$stage.df
   lev.actions = sapply(tg$action.levels, function(lev.num) tg$lev.li[[lev.num]]$var)
-  lev.num = 1
+  lev.num = tg$action.levels[1]
   tr = lapply(tg$action.levels, function(lev.num) {
     lev = tg$lev.li[[lev.num]]
     action = lev$var
