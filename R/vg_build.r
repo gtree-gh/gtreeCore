@@ -74,12 +74,12 @@ example.new.vg = function() {
     )
   )
   vg
-  unique(tg$oco.df$c1)
   tg = vg.to.tg(vg,add.sg = TRUE)
   tg
-  saveRDS(as.list(tg), "tg.Rds")
-
   View(memory.list(tg))
+
+  options(gtree.spo.chunk.size = 10000)
+  compute.tg.fields.for.internal.solver(tg)
 
   # Internal solver
   eq.li = gtree.solve.spe(tg=tg)
@@ -100,7 +100,7 @@ example.new.vg = function() {
   # Test make.sg.spo
   vg = new.vg(
     gameId = "TestStackelberg",
-    params = list(numPlayers=2, a=200, qMax=200),
+    params = list(numPlayers=2, a=100, qMax=100),
     stages = list(
       stage("q1Stage",
         player=1,
@@ -125,10 +125,10 @@ example.new.vg = function() {
       )
     )
   )
-  tg = vg.to.tg(vg,add.sg = TRUE)
+  tg = vg.to.tg(vg,add.sg = TRUE, verbose=FALSE)
   tg
 
-  options(gtree.spo.chunk.size = 1000)
+  options(gtree.spo.chunk.size = 10000)
   compute.tg.fields.for.internal.solver(tg)
 
   eq.li = gtree.solve.spe(tg=tg)

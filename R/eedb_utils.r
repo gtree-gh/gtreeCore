@@ -40,8 +40,8 @@ paste.matrix.cols = function(mat,cols=1:NCOL(mat),sep="|",...) {
 }
 
 
-#' Find groups of identical rows
-identical.rows.groups = function(df) {
+#' Find groups of identical rows (OLD VERSION NO DATA.TABLE)
+identical.rows.groups.old = function(df) {
   #df = data.frame(a=sample(1:2,6, replace=TRUE), b = sample(c("x","y"),6, replace=TRUE))
   restore.point("identical.rows.groups")
   if (length(df)==0)
@@ -64,6 +64,34 @@ identical.rows.groups = function(df) {
   #group = arrange(mdf,...ROW.NUM)$...GROUP
   group
 }
+
+#' Find groups of identical rows
+#' Uses data.table for speed
+identical.rows.groups = function(df) {
+  #df = data.frame(a=sample(1:2,6, replace=TRUE), b = sample(c("x","y"),6, replace=TRUE))
+  restore.point("identical.rows.groups")
+  if (length(df)==0)
+    return(numeric(0))
+
+  df = as.data.table(df)
+  udf = unique(df)
+
+  udf$...GROUP = 1:NROW(udf)
+  df$...ROW.NUM = 1:NROW(df)
+
+  # Set generates an internal error
+  #set(df, i=NULL, j="..ROW.NUM",1:NROW(df))
+  #set(udf, i=NULL, j="..GROUP",1:NROW(udf))
+
+  # inner_join does not work with NA
+  mdf = merge(df,udf,by=intersect(colnames(df), colnames(udf)), sort=FALSE)
+
+  group = numeric(NROW(mdf))
+  group[mdf$...ROW.NUM] = mdf$...GROUP
+  #group = arrange(mdf,...ROW.NUM)$...GROUP
+  group
+}
+
 
 combine.conditions.str = function(...) {
   conds = list(...)

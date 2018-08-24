@@ -36,14 +36,14 @@ tg.msg.fun = function(...) {
 	cat(paste0("\n",...))
 }
 
-vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add.spo=FALSE, msg.fun = tg.msg.fun, stop=gtree.stop.on.error()) {
+vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add.spo=FALSE, msg.fun = if (verbose) tg.msg.fun else function(...){}, stop=gtree.stop.on.error(), verbose=TRUE) {
   restore.point("vg.to.tg")
 
 	branching.limit = as.numeric(branching.limit)
 
 
 	if (is.null(msg.fun)) msg.fun = function(...) {}
-	msg.fun("Compute game tree for ", vg$gameId," variant ", vg$variant,"...")
+	if (verbose) msg.fun("Compute game tree for ", vg$gameId," variant ", vg$variant,"...")
 
   tg = new.env(parent = emptyenv())
   tg$ok = FALSE
@@ -90,7 +90,7 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add
   while (stage.num < length(vg$stages)) {
 
     stage.num = stage.num+1
- 		msg.fun("Gametree for ", vg$gameId," variant ", vg$variant,": Add stage ", vg$stages[[stage.num]]$name, " (", NROW(tg$stage.df)," outcomes so far) ...")
+ 		if (verbose) msg.fun("Gametree for ", vg$gameId," variant ", vg$variant,": Add stage ", vg$stages[[stage.num]]$name, " (", NROW(tg$stage.df)," outcomes so far) ...")
     tg$kel$setKey("stages", stage.num)
     stage <- try(compute.tg.stage(stage.num, tg, vg, tg$kel))
     if (tg$kel$count>0) {
@@ -110,14 +110,14 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add
     }
     tg$stages[[stage.num]] = stage
   }
- 	msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), finalize outcomes and et.mat...")
+ 	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), finalize outcomes and et.mat...")
 
  	# compute et.mat, oco and other variables...
  	compute.tg.et.oco.etc(tg)
 
   # know.var groups help to compute iso.df
   # later on
- 	msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute info sets...")
+ 	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute info sets...")
 
  	make.tg.know.var.groups(tg)
   make.tg.ise.df(tg)
@@ -128,18 +128,18 @@ vg.to.tg = function(vg, branching.limit = 10000, add.sg=TRUE, add.spi=FALSE, add
   set.tg.util(tg=tg)
 
   if (add.sg) {
-  	msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute subgames...")
+  	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute subgames...")
   	compute.tg.subgames(tg)
   }
 	if (add.spi) {
-	 	msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute spi...")
+	 	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute spi...")
 		make.tg.spi.li(tg)
 	}
 	if (add.spo) {
-	 	msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute spo table...")
+	 	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": All stages parsed (",NROW(tg$stage.df)," outcomes), compute spo table...")
   	make.tg.spo.li(tg)
 	}
-	 msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": completely generated.")
+	if (verbose) msg.fun("Game tree for ", vg$gameId," variant ", vg$variant,": completely generated.")
 
 	tg$ok = TRUE
 	class(tg) = c("gtree_tg","environment")

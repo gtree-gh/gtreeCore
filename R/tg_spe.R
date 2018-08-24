@@ -148,7 +148,7 @@ make.sg.spi = function(.sg.ind=1,tg, include.descendants=FALSE) {
 # .outcome: an outcome row in oco.df
 # .prob: the probability that this outcome
 # will be reached.
-make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi.df  = tg$spi.li[[.sg.ind]], tg, chunk.size= first.non.null(getOption("gtree.spo.chunk.size"), 100000)
+make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi.df  = tg$spi.li[[.sg.ind]], tg, chunk.size= first.non.null(getOption("gtree.spo.chunk.size"), 20000)
 ) {
 	restore.point("make.sg.spo.df")
 
@@ -182,17 +182,18 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 
 	oco.df = tg$oco.df[outcomes,,drop=FALSE]
 
+
   n.sp = prod(spi$moves)
+
+  if (n.sp>chunk.size) {
+    spo = make.sg.chunked.spo(sg.df,sgi.df,spi,.info.set.inds,ise.df,outcomes,oco.df, tg=tg, chunk.size=chunk.size)
+    finished=TRUE
+    return(spo)
+  }
   n.ise = NROW(spi)
   n.out = length(outcomes)
 
   moves.df = sp.to.moves(sp = 1:n.sp, spi)
-
-  if (NROW(moves.df)>chunk.size) {
-    spo = make.sg.chunked.spo(sg.df,sgi.df,spi,.info.set.inds,ise.df,outcomes,oco.df,moves.df, tg=tg, chunk.size=chunk.size)
-    finished=TRUE
-    return(spo)
-  }
 
   # This matrix can be quite big
   # If memory is a concern, we may split the matrix
@@ -202,7 +203,6 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 
   ise.ind = 1
   move.ind = 1
-  iso.row = 0
   for (ise.ind in seq_len(n.ise)) {
   	# outcome values of the variable
   	# that is decided at this info set
@@ -213,11 +213,8 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 
   	#move.ind = 1
     for (move.ind in seq_len(spi$moves[ise.ind])) {
-      iso.row = iso.row + 1
-
       .char.move.val = char.move.vals[move.ind]
 
-      #infeas = match(iso.infeasible[[iso.row]], outcomes)
       # infeasible outcomes have a different
       # value of the info set variable than
       # the value of the current move
@@ -249,54 +246,84 @@ make.sg.spo.df = function(.sg.ind = 1, sg.df = tg$sg.df, sgi.df = tg$sgi.df, spi
 # .outcome: an outcome row in oco.df
 # .prob: the probability that this outcome
 # will be reached.
-make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes, oco.df, moves.df, tg, chunk.size=20000) {
+make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes, oco.df, tg, chunk.size=20000) {
 	restore.point("make.sg.spo.df.chunked")
 
   n.sp = prod(spi$moves)
   n.ise = NROW(spi)
   n.out = length(outcomes)
 
-  chunk.starts = seq(1,NROW(moves.df), by=chunk.size)
 
+  # compute which information sets
+  # can be contained with all moves
+  # in a chunk
+  ise.cycle.length = n.sp / c(1,cumprod(spi$moves+1)[-n.ise])
+  full.ise = ise.cycle.length < chunk.size
+
+
+  chunk.starts = seq(1,n.sp, by=chunk.size)
+  chunk.start = 1
+
+  is.ise.oco.li = lapply(1:n.ise, function(ise.ind) {
+    find.info.set.outcomes(.info.set.ind = ise.df$.info.set.ind[ise.ind],tg = tg, oco.df=oco.df,return.logical = TRUE)
+  })
 
   spo.li = lapply(chunk.starts, function(chunk.start) {
-    chunk.rows = chunk.start:(min(chunk.start+chunk.size-1,NROW(moves.df)))
+    sp = chunk.start:(min(chunk.start+chunk.size-1,n.sp))
+    moves.df = sp.to.moves(sp = sp,spi = spi,ise.df=ise.df)
 
-
-    feas.mat = matrix(TRUE,length(chunk.rows),n.out )
-
-    chunk.moves.df = moves.df[chunk.rows,]
+    feas.mat = matrix(TRUE,length(sp),n.out )
 
     ise.ind = 1
     move.ind = 1
-    iso.row = 0
     for (ise.ind in seq_len(n.ise)) {
     	# outcome values of the variable
     	# that is decided at this info set
     	char.move.vals = as.character(ise.df$.move.vals[[ise.ind]])
     	var = ise.df$.var[ise.ind]
     	.char.oco.val = as.character(oco.df[[var]])
-    	is.ise.oco = find.info.set.outcomes(.info.set.ind = ise.df$.info.set.ind[ise.ind],tg = tg, oco.df=oco.df,return.logical = TRUE)
+
+    	# Get subset of moves we have to check
+    	if (ise.ind==1) {
+    	  # Moves in first information set
+    	  # are always ascending
+    	  moves = moves.df[1,1]:moves.df[NROW(moves.df),1]
+    	} else if (!full.ise[ise.ind]) {
+    	  start = moves.df[1,1]
+    	  end = moves.df[NROW(moves.df),1]
+    	  if (start <= end) {
+    	    moves = start:end
+    	  } else {
+    	    moves = c(1:end, start:spi$moves[ise.ind])
+    	  }
+        #moves = unique(moves.df[,ise.ind])
+    	} else {
+    	  moves = seq_len(spi$moves[ise.ind])
+    	}
+
+    	is.ise.oco = is.ise.oco.li[[ise.ind]]
 
     	# Go through each move in the
     	# current information set
-      for (move.ind in seq_len(spi$moves[ise.ind])) {
-        iso.row = iso.row + 1
-
+      for (move.ind in moves) {
         .char.move.val = char.move.vals[move.ind]
 
         # infeasible outcomes have a different
         # value of the info set variable than
         # the value of the current move
-        infeas = which(is.ise.oco & .char.oco.val != .char.move.val)
 
-        rows = which(chunk.moves.df[,ise.ind]==move.ind)
+        infeas = which(is.ise.oco & .char.oco.val != .char.move.val)
+        rows = which(moves.df[,ise.ind]==move.ind)
+
+        #infeas = is.ise.oco & .char.oco.val != .char.move.val
+        #rows = moves.df[,ise.ind]==move.ind
+
         feas.mat[rows,infeas] = FALSE
       }
     }
     spo = which(feas.mat,arr.ind = TRUE)
     colnames(spo) = c("sp",".outcome")
-    spo[,1] = chunk.rows[spo[,1]]
+    spo[,1] = sp
     spo
   })
   spo = do.call(rbind,spo.li)
@@ -400,8 +427,13 @@ spo.to.speu = function(spo.df, tg=NULL, add.outcomes = FALSE) {
 	}
 
 	# group by strategy profiles
+	# perform computation with a
+	# data.table because of substantial speed gains
+	spo.df = setDT(spo.df)
 	speu = group_by(spo.df, sp) %>%
-		s_summarise(code)
+		s_summarise(code) %>%
+	  as_data_frame()
+
 
 	speu
 }
