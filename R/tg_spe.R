@@ -83,7 +83,7 @@ compute.tg.fields.for.internal.solver = function(tg, verbose=TRUE) {
 
   if (is.null(tg$spo.li)) {
     start.time = Sys.time()
-  	if (verbose) cat("\nCompute mapping between strategy profiles and output for each subgame...")
+  	if (verbose) cat("\nCompute mapping between strategy profiles and outcomes for each subgame...")
     make.tg.spo.li(tg)
     if (verbose)
       cat("done in", format(Sys.time()-start.time))
@@ -259,20 +259,13 @@ make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes
   n.ise = NROW(spi)
   n.out = length(outcomes)
 
-
-  # compute which information sets
-  # can be contained with all moves
-  # in a chunk
-  ise.cycle.length = n.sp / c(1,cumprod(spi$moves+1)[-n.ise])
-  full.ise = ise.cycle.length < chunk.size
-
+  is.ise.oco.li = lapply(1:n.ise, function(ise.ind) {
+    find.info.set.outcomes(.info.set.ind = ise.df$.info.set.ind[ise.ind],tg = tg, oco.df=oco.df,return.logical = TRUE)
+  })
 
   chunk.starts = seq(1,n.sp, by=chunk.size)
   chunk.start = 1
 
-  is.ise.oco.li = lapply(1:n.ise, function(ise.ind) {
-    find.info.set.outcomes(.info.set.ind = ise.df$.info.set.ind[ise.ind],tg = tg, oco.df=oco.df,return.logical = TRUE)
-  })
 
   spo.li = lapply(chunk.starts, function(chunk.start) {
     sp = chunk.start:(min(chunk.start+chunk.size-1,n.sp))
@@ -280,58 +273,39 @@ make.sg.chunked.spo = function(sg.df,sgi.df,spi,.info.set.inds, ise.df, outcomes
 
     feas.mat = matrix(TRUE,length(sp),n.out )
 
-    ise.ind = 1
+    ise.ind = 0
     move.ind = 1
-    for (ise.ind in seq_len(n.ise)) {
+    while(ise.ind < n.ise) {
+      ise.ind = ise.ind+1
     	# outcome values of the variable
     	# that is decided at this info set
     	char.move.vals = as.character(ise.df$.move.vals[[ise.ind]])
     	var = ise.df$.var[ise.ind]
     	.char.oco.val = as.character(oco.df[[var]])
-
-    	# Get subset of moves we have to check
-    	if (ise.ind==1) {
-    	  # Moves in first information set
-    	  # are always ascending
-    	  moves = moves.df[1,1]:moves.df[NROW(moves.df),1]
-    	} else if (!full.ise[ise.ind]) {
-    	  start = moves.df[1,ise.ind]
-    	  end = moves.df[NROW(moves.df),ise.ind]
-    	  if (start <= end) {
-    	    moves = start:end
-    	  } else {
-    	    moves = c(1:end, start:spi$moves[ise.ind])
-    	  }
-    	  cat("\nmoves :", paste0(moves, collapse=", "))
-
-        moves = sort(unique(moves.df[,ise.ind]))
-    	} else {
-    	  moves = seq_len(spi$moves[ise.ind])
-    	}
-
     	is.ise.oco = is.ise.oco.li[[ise.ind]]
 
-    	# Go through each move in the
+    	# Go through ALL moves in the
     	# current information set
+    	# even if the move is not part
+    	# of the current chunk
+    	# to set INFEASIBLE outcomes
+    	moves = seq_len(spi$moves[ise.ind])
+    	move.ind = moves[2]
       for (move.ind in moves) {
         .char.move.val = char.move.vals[move.ind]
 
         # infeasible outcomes have a different
         # value of the info set variable than
         # the value of the current move
-
         infeas = which(is.ise.oco & .char.oco.val != .char.move.val)
         rows = which(moves.df[,ise.ind]==move.ind)
-
-        #infeas = is.ise.oco & .char.oco.val != .char.move.val
-        #rows = moves.df[,ise.ind]==move.ind
 
         feas.mat[rows,infeas] = FALSE
       }
     }
     spo = which(feas.mat,arr.ind = TRUE)
     colnames(spo) = c("sp",".outcome")
-    spo[,1] = sp
+    spo[,1] = sp[spo[,1]]
     spo
   })
   spo = do.call(rbind,spo.li)
