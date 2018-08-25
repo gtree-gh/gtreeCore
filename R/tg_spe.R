@@ -83,10 +83,10 @@ compute.tg.fields.for.internal.solver = function(tg, verbose=TRUE) {
 
   if (is.null(tg$spo.li)) {
     start.time = Sys.time()
-  	if (verbose) cat("\nCompute mapping between strategy profiles and outcomes for each subgame...")
+  	if (verbose) cat("\nCompute mapping between strategy profiles and outcome probabilities for each subgame...")
     make.tg.spo.li(tg)
     if (verbose)
-      cat("done in", format(Sys.time()-start.time))
+      cat("done in", format(Sys.time()-start.time), " mapping size =", format(object.size(tg$spo.li),units="auto"))
   }
 }
 
