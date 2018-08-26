@@ -49,6 +49,7 @@ set.tg.util = function(tg,util.funs=payoffUtil(1:tg$params$numPlayers), symmetri
   restore.point("set.tg.util")
 
 	tg$util.funs = util.funs
+	tg$util.param = attr(util.funs, "util.param")
   for (i in tg$players) {
     util.fun = util.funs[[min(i, length(util.funs))]]
     if (is.character(util.fun)) util.fun = parse(text=util.fun)
@@ -57,7 +58,7 @@ set.tg.util = function(tg,util.funs=payoffUtil(1:tg$params$numPlayers), symmetri
   }
 	tg$tg.id = get.tg.id(tg)
 
-  invisible(tg$oco.df)
+  invisible(tg)
 
 }
 

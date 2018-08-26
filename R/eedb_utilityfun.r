@@ -5,7 +5,9 @@ examples.utility.fun = function() {
 
 
 payoffUtil = function(player=1,n=NULL) {
-	paste0("payoff_",player)
+	util = paste0("payoff_",player)
+  attr(util, "util.param") = list(util.type="payoff")
+  util
 }
 
 
@@ -38,6 +40,8 @@ ineqAvUtil = function(player = 1,alpha=0.75,beta=0.5,n=2) {
   }
   lab = paste0("ineq",alpha*100,"_",beta*100)
   names(util)=rep(lab,np)
+  attr(util, "util.param") = list(util.type = "ineqAv", alpha=alpha, beta=beta)
+
   util
 }
 
@@ -59,10 +63,12 @@ envyUtil = function(player = 1,alpha=0.5,n=2) {
   }
   lab = paste0("envy",alpha*100)
   names(util)=rep(lab,np)
+  attr(util, "util.param") = list(util.type = "envy", alpha=alpha)
   util
 }
 example.get.envy.util = function() {
-  envyUtil(alpha=0.5,n=3)
+  envyUtil(alpha=0.5,n=2)
+
 
   util =uniform.loss.aversion.util(start=1,end=3)
   expr = parse(text=util[1])
@@ -123,6 +129,9 @@ unifLossAvUtil = function(player=1,rmin=0,rmax=1,lambda=2,n=NULL) {
   }
   names(util)=rep(lab,length(player))
   util = replace.payoff_i.in.util(util, players=player)
+
+  attr(util, "util.param") = list(util.type="unifLossAv",lambda=lambda, rmin=rmin,rmax=rmax)
+
   util
 }
 
@@ -137,6 +146,7 @@ lossAvUtil = function(player=1,r,lambda=2,n=NULL) {
   lab = paste0("lossAv_r",r,"_lambda",lambda)
   names(util)=rep(lab,length(player))
   util = replace.payoff_i.in.util(util, players=player)
+  attr(util, "util.param") = list(util.type="lossAv",lambda=lambda)
   util
 }
 
@@ -195,21 +205,14 @@ examples.OwnSumMin = function() {
   OwnSumMin()
 }
 
-# Put weight on own payoff, total payoff and minimal payoff
+#' Put weight on own payoff, total payoff and minimal payoff
 OwnSumMin = function(player=1,own_weight = 1, sum_weight=1, min_weight=1,n=2) {
 	sum = paste0("payoff_",seq_len(n), collapse="+")
 	min = paste0("pmin(",paste0("payoff_",seq_len(n),collapse=", "),")")
-	u = paste0(own_weight," * payoff_",player," + ",sum_weight," * (", sum,") + ", min_weight, " * ", min)
-	names(u) = paste0("OwnSumMin_",own_weight,"_",sum_weight,"_",min_weight)
-	u
+	util = paste0(own_weight," * payoff_",player," + ",sum_weight," * (", sum,") + ", min_weight, " * ", min)
+	names(util) = paste0("OwnSumMin_",own_weight,"_",sum_weight,"_",min_weight)
+  attr(util, "util.param") = list(util.type="OwnSumMin",own_weight=own_weight, sum_weight=sum_weight, min_weight=min_weight)
 
-}
-
-WSumMin = function(player=1,min_weight=1,n=2) {
-	sum = paste0("payoff_",seq_len(n), collapse="+")
-	min = paste0("pmin(",paste0("payoff_",seq_len(n),collapse=", "),")")
-	u = paste0(sum," + ", min_weight, " * ", min)
-	names(u) = paste0("W_SumMin_",min_weight)
-	u
+	util
 
 }

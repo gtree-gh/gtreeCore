@@ -1,7 +1,7 @@
 # Classify variables of a vg
-# Check whether they affect indirectly only payoffs
-# or other transformations, only probabilities
-# or other stuff like action sets, conditions, players etc
+# Check whether they affect payoffs
+# or other transformations, probabilities, sets
+# or other stuff like conditions, players, etc
 
 
 example.classify.vg.vars = function() {
@@ -41,12 +41,12 @@ example.classify.vg.vars = function() {
     )
   )
 
-  make.vg.vars.info(vg)
+  vg$vars.info = compute.vg.vars.info(vg)
 
 }
 
-make.vg.vars.info = function(vg) {
-  restore.point("make.vg.vars.info")
+compute.vg.vars.info = function(vg) {
+  restore.point("compute.vg.vars.info")
 
   all.stage.vars = unlist(lapply(vg$stages, function(stage) {
     c(names(stage$compute), names(stage$nature), names(stage$actions))
