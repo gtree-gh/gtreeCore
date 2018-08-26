@@ -57,71 +57,6 @@ example.gambit.solve.eq = function() {
 }
 
 
-#' compute expected equilibrium outcomes
-#' taking expectations over moves of nature
-expected.eq.outcomes = function(eqo.df=NULL, group.vars=c("eq.ind", "eqo.ind"),eq.li=NULL, tg=NULL) {
-	restore.point("expected.eq.outcomes")
-
-
-  if (!is.null(eq.li) & is.null(eqo.df)) {
-    eqo.df = eq.outcomes(eq.li,tg = tg)
-  }
-
-	if (NROW(eqo.df)==0) return(eqo.df)
-
-	vars = setdiff(colnames(eqo.df),group.vars)
-	group.vars = intersect(group.vars, colnames(eqo.df))
-
-	if ("eq.ind" %in% group.vars) {
-		if (is.list(eqo.df[["eq.ind"]])) {
-			group.vars = setdiff(group.vars, "eq.ind")
-			eqo.df = select(eqo.df, - eq.ind)
-		}
-	}
-
-	#vars = vars[sapply(vars, function(var) is.numeric(eqo.df[[var]]))]
-
-	fun = function(df) {
-		restore.point("fun")
-		vals = lapply(vars, function(var) {
-			if (is.character(df[[var]]) & var != "variant") {
-				restore.point("jhsjkhfkdhfh")
-				sdf = group_by_(df, "eqo.ind", var) %>%
-					s_summarise(paste0('
-						.sum.prob = sum(.prob),
-						.var.prob = paste0(first(',var,'),ifelse(.sum.prob < 1,paste0("(",round(.sum.prob,2),")"),""))'
-					))
-				return(paste0(unique(sdf[[".var.prob"]]), collapse=","))
-			}
-
-			if (var == ".outcome" | is.character(df[[var]]))
-				return(paste0(unique(df[[var]]), collapse=","))
-			if (var == ".prob")
-				return(sum(df[[var]]))
-
-			if (var=="is.eqo") {
-				return(df[[var]][1])
-			}
-
-			if (is.numeric(df[[var]]) | is.logical(df[[var]]))
-				return(sum(df[[var]] * df$.prob) / sum(df$.prob))
-
-			return(NULL)
-		})
-		names(vals) = vars
-		vals = vals[sapply(vals, function(val) !is.null(val))]
-		as_data_frame(c(as.list(df[1,group.vars, drop=FALSE]),vals))
-	}
-
-
-	all.vars = c(group.vars, vars)
-	res = eqo.df[,all.vars, drop=FALSE] %>%
-		group_by_(.dots=group.vars) %>%
-		do(fun(.)) %>%
-	  ungroup()
-	res
-
-}
 
 
 #' Finds one or all mixed strategy equilibria
@@ -230,183 +165,6 @@ save.eq.li = function(eq.li, eq.id = get.eq.id(tg=tg,...),tg,  eq.dir=get.eq.dir
 	)
 	file = paste0(eq.dir,"/",eq.id,".eq")
 	saveRDS(eq,file)
-}
-
-# ceq is the returned vector by gambit describing an equilibrium
-# it is a vector with as many elements as
-# information set moves and contains values between 0 and 1, describing the move probabilty for each information set. A pure strategy contains only 0s and 1s.
-# We convert it to eq.mat by writing the returned info set move probabilities at the right postion of et.mat.
-#
-# efg.move.inds is used because Gambit orders the information
-# sets in the computed equilibria by player first and then
-# in order of appearance in the efg file, while
-# gtree orders them by stage.
-ceq.to.eq.mat = function(ceq,eq.ind=1, tg,et.ind=which(tg$et.mat<0), efg.move.inds = compute.efg.move.inds(tg)) {
-  restore.point("ceq.to.eq.mat")
-  eq.mat = tg$et.mat
-
-  # Account for different ordering
-  # of gambit output and gtree's
-  # information set numbers
-  if (!is.null(efg.move.inds)) {
-    ceq.gtree.order = integer(length(ceq))
-    ceq.gtree.order[efg.move.inds] = ceq
-    ceq = ceq.gtree.order
-  }
-  eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
-
-  .prob = rowProds(eq.mat)
-  eq.mat = cbind(eq.mat, .prob)
-  attr(eq.mat,"eq.ind") = eq.ind
-  attr(eq.mat,"info.set.probs") = ceq
-  eq.mat
-
-}
-
-get.eq.id = function(tg.id=tg$tg.id, just.spe=TRUE, mixed=FALSE, tg=NULL, solvemode=NULL) {
- 	eq.id = paste0(tg$tg.id)
- 	if (!is.null(solvemode)) {
- 		return(paste0(eq.id,"__",solvemode))
- 	}
- 	if (just.spe)
- 		eq.id = paste0(eq.id,"_spe")
- 	if (mixed)
- 		eq.id = paste0(eq.id,"_mixed")
- 	eq.id
-
-}
-
-# equilibrium outcome data frame
-eq.outcomes = function(eq.li, oco.df = tg$oco.df, tg=NULL, cond=NULL, compress=TRUE, as.data.frame=TRUE) {
-  restore.point("eq.outcomes")
-  eqo.li = lapply(eq.li, eq.outcome, oco.df=oco.df, tg=tg, cond=cond)
-  if (length(eqo.li)>0) {
-    is.null = sapply(eqo.li,is.null)
-    eqo.li = eqo.li[!is.null]
-  }
-  if (compress) {
-    # unique equilibrium ouctomes
-    u.li = unique(eqo.li)
-    org.ind = match(eqo.li, u.li)
-    eqo.li = lapply(seq_along(u.li), function(i) {
-    	restore.point("nsfndfn")
-      eqo = u.li[[i]]
-      eqo$eq.ind = replicate(NROW(eqo),which(org.ind==i), simplify=FALSE)
-      eqo$eqo.ind = i
-      eqo
-    })
-  }
-  if (as.data.frame) {
-    return(xs.col.order(bind_rows(eqo.li),tg))
-  }
-  return(eqo.li)
-}
-
-# return the equilibrium outcome
-eq.outcome = function(eq.mat, oco.df=tg$oco.df, tg=NULL, cond=NULL) {
-  restore.point("eq.outcome")
-  if (!is.null(cond)) return(cond.eq.outcome(eq.mat, cond, oco.df, tg))
-  oco.rows = eq.mat[,".prob"] > 0
-  eo.df = oco.df[oco.rows,]
-  if (NROW(eo.df)==0) return(NULL)
-
-  eo.df$.prob = eq.mat[oco.rows,".prob"]
-  xs.col.order(eo.df,tg)
-}
-
-#' Return a conditional equilibrium outcome
-#'
-#' @param eq.li The computed equilibria in gtree form
-#' @param cond is a list with variable names and their assumed value
-#' we only pick rows from oco.df in which the condition is satisfied
-#' we set the probabilities of the conditioned variable values to 1
-#' @param expected return expected conditional equilibrium outcomes
-#' @param remove.duplicate.eq remove conditional outcomes that are duplicates but arise in different equilibria (who differ off the conditional path)
-cond.eq.outcomes = function(eq.li, cond, tg=NULL,oco.df=tg$oco.df, expected=FALSE, remove.duplicate.eq=TRUE) {
-  restore.point("cond.eq.outcomes")
-	li = lapply(seq_along(eq.li), function(i) {
-		eq.mat = eq.li[[i]]
-		eq.ind = first.non.null(attr(eq.mat,"eq.ind"),i)
-		cond.eq.outcome(eq.mat, cond=cond, oco.df=oco.df, tg=tg, eq.ind=eq.ind)
-	})
-	ceqo = xs.col.order(bind_rows(li),tg)
-
-	# Remove duplicated equilibria that
-	# have the same equilibrium outcomes
-	if (remove.duplicate.eq) {
-    cols = setdiff(colnames(ceqo),c("eq.ind","is.eqo"))
-    ceqo = arrange(ceqo, ceqo.ind, !is.eqo)
-    dupl = duplicated(ceqo[,cols])
-    if (any(dupl))
-      ceqo = ceqo[!dupl,,drop=FALSE]
-	}
-
-	if (expected)
-    return(expected.cond.eq.outcomes(ceqo))
-
-
-	return(ceqo)
-}
-
-
-expected.cond.eq.outcomes = function(ceqo.df) {
-  restore.point("expected.cond.eq.outcomes")
-  if (!"eqo.ind" %in% colnames(ceqo.df))
-    ceqo.df$eqo.ind = ceqo.df$eq.ind
-  res = expected.eq.outcomes(ceqo.df, group.vars=c("ceqo.ind","eq.ind"))
-  res = select(res,-eqo.ind)
-  res
-}
-
-
-#' return a conditional equilibrium outcome
-#' cond is a list with variable names and their assumed value
-#' we only pick rows from oco.df in which the condition is satisfied
-#' we set the probabilities of the conditioned variable values to 1
-cond.eq.outcome = function(eq.mat, cond, tg=NULL, oco.df=tg$oco.df, eq.ind = first.non.null(attr(eq.mat,"eq.ind"),NA), eo.df = eq.outcome(eq.mat=eq.mat, oco.df=oco.df, tg=tg), ceqo.ind=1) {
-  restore.point("cond.eq.outcome")
-	cond.df = as_data_frame(cond)
-
-	# multiple rows, call function repeatedly
-	if (NROW(cond.df)>1) {
-		li = lapply(seq_len(NROW(cond.df)), function(row) {
-			cond.eq.outcome(eq.mat=eq.mat, cond = cond.df[row,,drop=FALSE], oco.df = oco.df, tg =tg, eq.ind=eq.ind, eo.df = eo.df, ceqo.ind=row+ceqo.ind-1)
-		})
-		return(bind_rows(li))
-	}
-  restore.point("cond.eq.outcome.inner")
-
-  cond.vars = names(cond)
-
-  # only consider outcome rows where cond is satisfied
-  rows = rep(TRUE,NROW(oco.df))
-  for (var in cond.vars) {
-    if (length(cond[[var]])==0) next
-    rows = rows & (oco.df[[var]] %in% cond[[var]])
-  }
-  oco.df = oco.df[rows,,drop=FALSE]
-  eq.mat = eq.mat[rows,,drop=FALSE]
-  # set the probabilities of the variables, we condition on to 1
-  eq.mat[,intersect(cond.vars,colnames(eq.mat))]=1
-  # compute conditional outcome probabilities
-  eq.mat[,".prob"] = rowProds(eq.mat[,-NCOL(eq.mat),drop=FALSE])
-
-  oco.rows = eq.mat[,".prob"] > 0
-  ceo.df = oco.df[oco.rows,]
-  ceo.df$.prob = eq.mat[oco.rows,".prob"]
-	ceo.df$eq.ind = eq.ind
-
-	# find the conditional outcomes that are equilibrium outcomes
-	keys = setdiff(
-		intersect(colnames(ceo.df), colnames(eo.df)),
-		c(".prob",".outcome","eq.ind","eqo.ind")
-	)
-	eo.df$is.eqo = TRUE
-	ceo.df = left_join(ceo.df, eo.df[,c(keys,"is.eqo")],by=keys)
-	ceo.df$ceqo.ind = ceqo.ind
-	ceo.df$is.eqo[is.na(ceo.df$is.eqo)] = FALSE
-
-  xs.col.order(ceo.df,tg)
 }
 
 xs.col.order = function(df, vg, mode="vars") {
@@ -543,3 +301,34 @@ compute.efg.move.inds = function(tg,efg.txt = readLines(efg.file), efg.file=file
 }
 
 
+
+# ceq is the returned vector by gambit describing an equilibrium
+# it is a vector with as many elements as
+# information set moves and contains values between 0 and 1, describing the move probabilty for each information set. A pure strategy contains only 0s and 1s.
+# We convert it to eq.mat by writing the returned info set move probabilities at the right postion of et.mat.
+#
+# efg.move.inds is used because Gambit orders the information
+# sets in the computed equilibria by player first and then
+# in order of appearance in the efg file, while
+# gtree orders them by stage.
+ceq.to.eq.mat = function(ceq,eq.ind=1, tg,et.ind=which(tg$et.mat<0), efg.move.inds = compute.efg.move.inds(tg)) {
+  restore.point("ceq.to.eq.mat")
+  eq.mat = tg$et.mat
+
+  # Account for different ordering
+  # of gambit output and gtree's
+  # information set numbers
+  if (!is.null(efg.move.inds)) {
+    ceq.gtree.order = integer(length(ceq))
+    ceq.gtree.order[efg.move.inds] = ceq
+    ceq = ceq.gtree.order
+  }
+  eq.mat[et.ind] = ceq[-eq.mat[et.ind]]
+
+  .prob = rowProds(eq.mat)
+  eq.mat = cbind(eq.mat, .prob)
+  attr(eq.mat,"eq.ind") = eq.ind
+  attr(eq.mat,"info.set.probs") = ceq
+  eq.mat
+
+}

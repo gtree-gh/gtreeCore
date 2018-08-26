@@ -12,14 +12,14 @@ example.check.vg.eq = function() {
   tg = get.tg(vg = vg, never.load = TRUE)
   tg
   eq.li = get.eq(tg)
-  rules = pure.eq.to.table.rules(eq.li[[1]], tg=tg,add.stage = TRUE)
+  rules = eq.table.rules(eq.li[[1]], tg=tg,add.stage = TRUE)
   rules[[2]]$tables[[1]]$accept[2] = 0
   check.vg.rules.eq(vg, rules, check.all=TRUE)
 
   rvg = set.vg.rules(vg, rules[2])
   rtg = vg.to.tg(rvg,branching.limit = 10000)
   req.li = get.eq(rtg, never.load = TRUE,save.new = FALSE)
-  pure.eq.li.to.tables(req.li,rtg)
+  eq.li.tables(req.li,rtg)
 
 
 	rules = list(

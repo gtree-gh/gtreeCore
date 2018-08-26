@@ -32,7 +32,7 @@ example.new.vg = function() {
   tg
   eq.li = gtree.solve.spe(tg=tg)
   expected.eq.outcomes(eq.li=eq.li, tg=tg)
-  pure.eq.to.tables(eq.li[[1]], tg=tg)
+  eq.tables(eq.li[[1]], tg=tg)
 
 
   vg$stages
@@ -40,7 +40,7 @@ example.new.vg = function() {
 
   vg = new.vg(
     gameId = "RandomCostCournot",
-    params = list(numPlayers=2, a=100, qMax=50,
+    params = list(numPlayers=2, a=100, qMax=40,qMin=10,
       c2=0, c1Low=0, c1High=10),
     stages = list(
       stage("drawCostStage",
@@ -52,14 +52,14 @@ example.new.vg = function() {
         player=1,
         observe="c1",
         actions = list(
-          action("q1",~0:qMax)
+          action("q1",~qMin:qMax)
         )
       ),
       stage("q2Stage",
         player=2,
         #observe="c1",
         actions = list(
-          action("q2",~0:qMax)
+          action("q2",~qMin:qMax)
         )
       ),
       stage("PayoffStage",
@@ -76,7 +76,7 @@ example.new.vg = function() {
   vg
   tg = vg.to.tg(vg,add.sg = TRUE)
   tg
-  View(memory.list(tg))
+  #View(memory.list(tg))
 
   options(gtree.spo.chunk.size = 10000)
   compute.tg.fields.for.internal.solver(tg)
@@ -84,7 +84,6 @@ example.new.vg = function() {
   # Internal solver
   eq.li = gtree.solve.spe(tg=tg)
 
-  spo.li = tg$spo.li
   # Gambit
   eq.li = gambit.solve.eq(tg=tg, save.eq=FALSE)
 
@@ -92,8 +91,8 @@ example.new.vg = function() {
   eqo.li = expected.eq.outcomes(eq.li=eq.li, tg=tg)
   eqo.li
 
-  pure.eq.to.tables(eq.li[[1]], tg=tg)
-  pure.eq.to.table.rules(eq.li[[1]], tg=tg)
+  eq.tables(eq.li[[1]], tg=tg)
+  eq.table.rules(eq.li[[1]], tg=tg)
 
 
 
@@ -132,7 +131,7 @@ example.new.vg = function() {
   compute.tg.fields.for.internal.solver(tg)
 
   eq.li = gtree.solve.spe(tg=tg)
-  pure.eq.to.tables(eq.li[[1]], tg=tg)
+  eq.tables(eq.li[[1]], tg=tg)
 
 
   eq.li = gambit.solve.eq(tg=tg, save.eq=FALSE)
@@ -159,8 +158,12 @@ f2c = function(x) {
   x
 }
 
-action = function(name, set, ...) {
-  list(name=name,set=f2c(set),...)
+action = function(name, set, strategyMethodDomain=NULL, ...) {
+  if (is.null(strategyMethodDomain)) {
+    list(name=name,set=f2c(set),...)
+  } else {
+    list(name=name,set=f2c(set),strategyMethodDomain=strategyMethodDomain,...)
+  }
 }
 
 natureMove = function(name, set, probs=NULL,...) {
@@ -205,4 +208,59 @@ stage = function(name, player=NULL, condition=NULL, observe=NULL, compute=NULL, 
     x
   }))
   nlist(name,player,condition,observe, compute,nature, actions,...)
+}
+
+copy.game = function(game) {
+  as.environment(as.list(game))
+}
+
+update.stage = function(vg=NULL, name, player, condition, observe, compute, nature, actions,...) {
+  restore.point("update.stage")
+
+  stage = vg$stages[[name]]
+
+  if (!missing(player))
+    stage$player = f2c(player)
+  if (!missing(observe))
+    stage$observe=f2c(observe)
+  if (!missing(condition))
+    stage$condition = f2c(condition)
+
+
+  if (!missing(compute)) {
+    stage$compute = name.by.name(lapply(seq_along(compute), function(i) {
+      trans = compute[[i]]
+      restore.point("stage385")
+      if (is(trans,"formula")) {
+        if (length(trans)==3)
+          return(list(name=as.character(trans[[2]]),formula=trans[[3]]))
+        return(list(name = names(compute)[[i]], formula=trans[[2]]))
+      }
+      if (is.null(trans$name)) trans$name = names(compute)[[i]]
+      trans$formula = f2c(trans$formula)
+      trans
+    }))
+  }
+
+  if (!missing(nature)) {
+    stage$nature = name.by.name(lapply(seq_along(nature), function(i) {
+      x = nature[[i]]
+      if (is.null(x$name)) x$name = names(nature)[[i]]
+      x$set = f2c(x$set)
+      x$prob = f2c(x$prob)
+      x
+    }))
+
+  }
+  if (!missing(actions)) {
+    stage$actions = name.by.name(lapply(seq_along(actions), function(i) {
+      x = actions[[i]]
+      if (is.null(x$name)) x$name = names(actions)[[i]]
+      x$set = f2c(x$set)
+      x
+    }))
+  }
+
+  vg$stages[[name]] = stage
+  vg
 }
