@@ -1,0 +1,111 @@
+---
+title: "GTREE - Introduction a Simple Ultimatum Game"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gtreeCore)
+```
+
+## Specifying a game
+
+First, we load the `gtreeCore` library that contains all functions to use gtree from R, but no shiny GUI. We also define a small simple Ultimatum game with the function `new.vg`.
+
+```{r}
+library(gtreeCore)
+vg = new.vg(
+  gameId = "UltimatumGame",
+  params = list(numPlayers=2, cake=4),
+  stages = list(
+    stage("proposerStage",
+      player=1,
+      actions = list(
+        action("offer",~0:cake)
+      )
+    ),
+    stage("responderStage",
+      player=2,
+      observe = "offer",
+      actions = list(
+        action("accept",c(FALSE,TRUE))
+      )
+    ),
+    stage("PayoffStage",
+      player=1:2,
+      compute=list(
+        payoff_1 ~ ifelse(accept, cake-offer,0),
+        payoff_2 ~ ifelse(accept, offer,0)
+      )
+    )
+  )
+)
+```
+
+
+The `gameId` should be a unique name of the game. This is relevant if we want to conveniently save results, like computed equilibria, in the default folder structure used by `gtree`.
+
+We then define a list of parameters `params`. Parameters can be referenced to in later definitions of the game. Note that you must *always* specify the number of players in a parameter called `numPlayers`. We also specify the size of the `cake` that can be distributed between the proposer and responder in the game.
+
+Heart of our definition is a list of 3 `stages`. Each stage in the list should be generated with the function `stage` that sets defaults and transforms all formulas into a canoncial format.
+
+1. In the first stage is named `proposerStage`. The argument `player=1`, specifies that player 1 acts here.
+She chooses an action `offer`, that is created with the function `action` and element of a list `actions`. The function action first requires a name and then a set of possible values the action can take. Here we specify the set as a formula `~ 0:cake`. This means we compute the action set based on the specified parameters and possibly based on previously computed variables including chosen action values or realized moves of nature.<br>
+Alternatively, we could also provide a fixed action set without formula e.q. `0:4`. This can not contain references to parameters or variables of the game and is always fixed when the game is created.
+
+2. In the second stage player 2, observes the offer. This is specified by the argument `observe="offer"`. The argument observe specifies all observed variables as a simple character vector, or remains `NULL` if nothing is observed.<br>
+Player 2 then decides whether to accept the action or not. Here we have chosen the fixed action set `c(FALSE,TRUE)`. You could encode specify the set for accept in a different way, e.g. as a character vector `c("reject","accept")` or an integer vector `c(0,1)`. 
+
+
+3. The third stage just computes variables as specified by the list provided for the field `compute`. You can briefly specify a computation with the formula syntax `name ~ formula`.  Note that for each player `i` you must compute somewhere in your game the variable `payoff_i`, like `payoff_1` and `payoff_2`, that specifies the (monetary) payoff for that player. We can later easily transform these monetary payoffs, using some alternative outcome based utility function, e.g. to account for inequality aversion or loss aversion.
+<br>You can use any vectorized, deterministic R function to specify a computed variable. Random variables must be declared separately, as a move of nature, however (see further below). Here we use the function `ifelse` for a simple distinction of two cases. For distinguishing more than two cases the functions `cases` in `gtreeCore` provides a simple syntax. Note that we could have more compactly written:
+`payoff_1 ~ (cake-offer)*accept` and `payoff_2 ~ offer*accept`
+<br>For computing equilibria, it does not really matter which players you specify a stage in which no action takes place. However, `gtree` also has (currently rudimentary) features to run a game as a web-based experiment. When running as an experiment, a stage will be shown to all players that are specified in the `players` field. If an action is taken in a stage, exactly ONE player must be specified. For stages without actions, you can specify any number of players including no player.
+
+We can get a short overview of a specified game by typing its variable name in the R console.
+```{r}
+vg
+```
+
+Note that the abbreviation `vg` stands for `variant game`. If you use the GUI, you can also specify different variants of a game in a single game tree that may differ by their parameters, or other elements. A variant game is the distilled game tree for one particular variant. In the R interface, we will always directly specify games for single variants.
+
+
+## Table-form representation and solving for equilibria
+
+Before we can solve for equilibria of a game, we have to create a table-form representation of the game using the function `vg.to.tg`.
+
+```{r}
+tg = vg.to.tg(vg)
+```
+
+Briefly spoken a table form game describes the extensive form of the game using several data frames. While this representation uses more memory than common tree representations like nested lists or linked lists, it benefits from R's ability (strongly enhanced by the `dplyr` and `data.table` packages) to quickly manipulate tabular data.
+A detailed explanation of the internal structure of the different game representations is given in another vignette. 
+
+We can get some basic information about the extensive form representation by printing the `tg` variable.
+```{r}
+tg
+```
+The following code solves for all pure strategy subgame perfect equilibria (SPE) of the game using the internal gtree solver.
+```{r}
+eq.li = gtree.solve.spe(tg)
+length(eq.li) # no of equilibria
+eq.li
+```
+The ultimatum game has 2 pure SPE. Yet, the equilibria are returned in a representation that is hard to interpret directly, but suitable for further transformation.
+
+The following code shows the equilibrium outcomes, i.e. all actions and computed variables on the equilibrium path. 
+```{r}
+eqs.outcomes(eq.li,tg = tg)
+```
+In the first equilibrium the proposer offers 1 unit, in the second 0 units.
+
+The following code shows a table representation of each equilibrium that allows us also to see the chosen actions off the equilibrium path.
+```{r}
+eqs.tables(eq.li, tg=tg)
+```
+
+```{r}
+eqs.tables(eq.li, tg=tg, combine=TRUE)
+```
+
+
