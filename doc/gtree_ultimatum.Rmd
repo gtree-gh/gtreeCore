@@ -95,17 +95,23 @@ The ultimatum game has 2 pure SPE. Yet, the equilibria are returned in a represe
 
 The following code shows the equilibrium outcomes, i.e. all actions and computed variables on the equilibrium path. 
 ```{r}
-eqs.outcomes(eq.li,tg = tg)
+eq.li.outcomes(eq.li,tg = tg)
 ```
 In the first equilibrium the proposer offers 1 unit, in the second 0 units.
 
 The following code shows a table representation of each equilibrium that allows us also to see the chosen actions off the equilibrium path.
 ```{r}
-eqs.tables(eq.li, tg=tg)
+eq.li.tables(eq.li, tg=tg)
 ```
+We see that in the first equilibrium, an offer of 0 is rejected, while all other offers are accepted. Correspondingly, the equilibrium offer is 1. In the second, equilibrium all offers are accepted and the equilibrium offer is thus 0.
+
+## Change utility function
 
 ```{r}
-eqs.tables(eq.li, tg=tg, combine=TRUE)
+set.tg.util(tg, util.funs = ineqAvUtil())
 ```
+
+
+# Internal representation
 
 

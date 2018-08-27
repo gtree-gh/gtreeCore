@@ -455,7 +455,7 @@ reduce.key.table = function(table, var=colnames(table)[NCOL(table)], keep.keys=N
   # of elements
   if (length(perf.pred)>1) {
     len = sapply(perf.pred, function(key) {
-      n_distinc(table[[key]])
+      n_distinct(table[[key]])
     })
     perf.pred = perf.pred[which.min(len)]
   }
