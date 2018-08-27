@@ -32,9 +32,15 @@ paste.matrix.cols = function(mat,cols=1:NCOL(mat),sep="|",...) {
     return(paste(mat[,cols[1]],mat[,cols[2]],...,sep=sep))
   } else if (NROW(cols)==3) {
     return(paste(mat[,cols[1]],mat[,cols[2]],mat[,cols[3]],...,sep=sep))
+  } else if (NROW(cols)==1) {
+    return(as.character(mat[[cols]]))
+  } else if (is.integer(cols)) {
+    code = paste0("mat[,",cols,"]",collapse=",")
+    code = paste0("paste(",code,",...,sep=sep)",sep="")
+    return(eval(parse(text=code)))
   } else {
-    code = paste("mat[,",cols,"]",collapse=",")
-    code = paste("paste(",code,",...,sep=sep)",sep="")
+    code = paste0("mat[,'",cols,"']",collapse=",")
+    code = paste0("paste(",code,",...,sep=sep)",sep="")
     return(eval(parse(text=code)))
   }
 }

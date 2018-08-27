@@ -27,8 +27,9 @@ print.gtree_tg = function(tg) {
 		no.sp = format(sum(tg$sg.df$.num.strats.without.desc), big.mark=" ",scientific = 9)
 
 		cat(paste0("\n  - ",no.sg, " subgames"))
-		cat(paste0("\n  - ",no.sp, " strategy profiles with backward induction"))
+		cat(paste0("\n  - ",no.sp, " relevant subgame strategy profiles"))
   }
+  cat("\n")
 }
 
 print.gtree_vg = function(vg) {
@@ -40,6 +41,8 @@ print.gtree_vg = function(vg) {
     cat("\n")
     print.gtree_stage(stage)
   }
+  cat("\n")
+
 }
 
 print.gtree_stage = function(stage) {

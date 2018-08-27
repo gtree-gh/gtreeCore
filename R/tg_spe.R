@@ -39,7 +39,7 @@ examples.make.tg.spe = function() {
 }
 
 
-gtree.solve.spe = solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId), save.eq=FALSE) {
+gtree.solve.spe = solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId), save.eq=FALSE, keep.weakly.dominated=TRUE) {
 	restore.point("solve.all.tg.spe")
 
 
@@ -54,7 +54,7 @@ gtree.solve.spe = solve.all.tg.spe = function(tg, eq.dir = get.eq.dir(tg$gameId)
 	tg$spe.li = vector("list", length(.sg.inds))
 
 	for (.sg.ind in .sg.inds) {
-		tg$spe.li[[.sg.ind]] = solve.sg.spe(.sg.ind = .sg.ind, tg=tg)
+		tg$spe.li[[.sg.ind]] = solve.sg.spe(.sg.ind = .sg.ind, tg=tg, keep.weakly.dominated=keep.weakly.dominated)
 	}
 	tg$eq.li = tg.spe.li.to.eq.li(spe.li=tg$spe.li, tg=tg)
 
@@ -335,7 +335,7 @@ moves.to.sp = function(moves,spi) {
 }
 
 # strategy profile index to matrix of moves at each information set
-sp.to.moves = function(sp, spi=tg$spi, ise.df=NULL, wide=TRUE) {
+sp.to.moves = function(sp, spi, ise.df, wide=TRUE) {
   restore.point("sp.to.moves")
 
   moves = matrix(0, NROW(sp), NROW(spi))
@@ -365,15 +365,40 @@ sp.to.moves = function(sp, spi=tg$spi, ise.df=NULL, wide=TRUE) {
 
 }
 
-# strategy profile index to matrix of moves at each information set
-sp.to.sp_i = function(player = 1,sp, spi) {
-  restore.point("sp.to.sp_i")
+# get indeces of player i's strategy
+# given a vector of strategy profiles sp
+# and a specific subgame specified spi
+sp.to.s.i = function(player = 1,sp, spi) {
+  restore.point("sp.to.s.i")
 
-
-	#sp.to.moves(sp,spi)
-	cols = which(spi$.player != player)
-
+  ise=which(spi$.player == player)
 	# player makes no moves
+	if (length(ise)==0)
+		return(rep(0L, NROW(sp)))
+
+  move.mult = c(rev(cumprod(spi$moves[ise]))[-1],1)
+
+	sp_i = integer(NROW(sp))
+	for (col in 1:max(ise)) {
+    # integer division
+    move_1 = ( (sp-1) %/% spi$move.mult[col])
+    if (col %in% ise) {
+    	ise.ind = which(ise==col)
+      sp_i = sp_i + move_1 * move.mult[ise.ind]
+    }
+    # remainder
+    sp = sp - (move_1)*spi$move.mult[col]
+  }
+	sp_i+1
+}
+
+
+# get indeces of other player strategy profiles
+sp.to.sp.not.i = function(player = 1,sp, spi, 	cols = which(spi$.player != player)
+) {
+  restore.point("sp.to.sp.not.i")
+
+	# other players make no moves
 	if (length(cols)==0)
 		return(rep(0L, NROW(sp)))
 
@@ -394,10 +419,50 @@ sp.to.sp_i = function(player = 1,sp, spi) {
 	sp_i
 }
 
+# Create a matrix with all strategies of player i
+# in the rows and all strategies /
+# strategy profiles of the other players
+# in the columns
+#
+# Each matrix cell contains the strategy number
+#
+# The matrix can be used to check whether we have
+# (weakly) dominated strategies in the subgame
+sg.matrix = function(player=1,spi) {
+  restore.point("sg.matrix")
+
+  row.ise = which(spi$.player == player)
+  col.ise = which(spi$.player != player)
+
+  nrows = prod(spi$moves[row.ise])
+  ncols = prod(spi$moves[col.ise])
+
+  sp.row = integer(nrows)
+  move.mult = c(rev(cumprod(spi$moves[row.ise]))[-1],1)
+  counter = 1
+  for (counter in seq_along(row.ise)) {
+    ise = row.ise[counter]
+    moves = rep(rep(1:spi$moves[ise], each=move.mult[counter]), length.out=nrows)
+    sp.row = sp.row + (moves-1)*spi$move.mult[ise]
+  }
+
+  sp.col = integer(ncols)
+  move.mult = c(rev(cumprod(spi$moves[col.ise]))[-1],1)
+  counter = 1
+  for (counter in seq_along(col.ise)) {
+    ise = col.ise[counter]
+    moves = rep(rep(1:spi$moves[ise], each=move.mult[counter]), length.out=ncols)
+    sp.col = sp.col + (moves-1)*spi$move.mult[ise]
+  }
+
+  mat = matrix(sp.col, nrows, ncols, byrow=TRUE)
+  mat = mat + sp.row+1
+  mat
+}
 
 
 #
-spo.to.speu = function(spo.df, tg=NULL, add.outcomes = FALSE) {
+spo.to.speu = function(spo.df, tg=NULL, add.outcomes = FALSE, as.data.table = FALSE) {
 	restore.point("spo.to.eu.df")
 	all.players = seq_len(tg$params$numPlayers)
 	oco = tg$oco.df[,c(".outcome",paste0("util_",all.players))]
@@ -413,17 +478,18 @@ spo.to.speu = function(spo.df, tg=NULL, add.outcomes = FALSE) {
 	# data.table because of substantial speed gains
 	spo.df = setDT(spo.df)
 	speu = group_by(spo.df, sp) %>%
-		s_summarise(code) %>%
-	  as_data_frame()
+		s_summarise(code)
+	if (as.data.table)
+	  return(speu)
 
+	return(as_data_frame(speu))
 
-	speu
 }
 
 #' solve all spe of subgame .sg.ind
 #' assumes that descendent subgames have already been solved
 #' and uses backward induction
-solve.sg.spe = function(.sg.ind=1, tg) {
+solve.sg.spe = function(.sg.ind=1, tg, keep.weakly.dominated=TRUE) {
 
 	# 1. We first generate a grid of all children
 	#    subgame equilibrium outcome combinations
@@ -441,7 +507,7 @@ solve.sg.spe = function(.sg.ind=1, tg) {
 
 	# no children subgames => solve directly
 	if (length(child.sg)==0) {
-		eq = solve.sg.spe.given.remove(.sg.ind=.sg.ind, tg=tg)
+		eq = solve.sg.spe.given.remove(.sg.ind=.sg.ind, tg=tg, keep.weakly.dominated=keep.weakly.dominated)
 		return(eq)
 	}
 
@@ -474,7 +540,7 @@ solve.sg.spe = function(.sg.ind=1, tg) {
 		})))
 
 		remove.outcomes = setdiff(child.sg.outcomes,eqo.outcomes)
-		eq = solve.sg.spe.given.remove(.sg.ind = .sg.ind,tg = tg, remove.outcomes = remove.outcomes, child.eqo.inds = as.integer(eqo.grid[grid.row,]))
+		eq = solve.sg.spe.given.remove(.sg.ind = .sg.ind,tg = tg, remove.outcomes = remove.outcomes, child.eqo.inds = as.integer(eqo.grid[grid.row,]),  keep.weakly.dominated=keep.weakly.dominated)
 
 		# to do: need to add subgame info to eq
 		return(eq)
@@ -489,9 +555,9 @@ solve.sg.spe = function(.sg.ind=1, tg) {
 # internal function to solve sg.spe
 # remove.outcomes depend on the equilibria
 # of the child subgames
-# backward induction simple works
+# backward induction simply works
 # by removing from spo.df all outcomes from remove.outcomes
-solve.sg.spe.given.remove = function(.sg.ind=1, tg, remove.outcomes=NULL, child.eqo.inds = NULL) {
+solve.sg.spe.given.remove = function(.sg.ind=1, tg, remove.outcomes=NULL, child.eqo.inds = NULL, keep.weakly.dominated=TRUE) {
 	restore.point("solve.sg.spe.given.remove")
 
 	spo.df = tg$spo.li[[.sg.ind]]
@@ -515,7 +581,7 @@ solve.sg.spe.given.remove = function(.sg.ind=1, tg, remove.outcomes=NULL, child.
 	# for each player who moves
 	# mark best reply strategy profiles
 	for (player in players) {
-		speu[[paste0("sp_",player)]] = sp.to.sp_i(player, speu$sp, spi)
+		speu[[paste0("sp_",player)]] = sp.to.sp.not.i(player, speu$sp, spi)
 		speu = s_group_by(speu, paste0("sp_",player)) %>%
 			s_mutate(paste0("is_br_",player," = Eutil_",player," == max(Eutil_",player,")"))
 	}
@@ -525,8 +591,23 @@ solve.sg.spe.given.remove = function(.sg.ind=1, tg, remove.outcomes=NULL, child.
 	cond = parse(text=paste0("speu$is_br_",players, collapse=" & "))
 	speu$is_eq = eval(cond)
 
+	eq.rows = which(speu$is_eq)
+	if (!keep.weakly.dominated) {
+    #restore.point("remove.weakly.dominated.eq")
+	  i = 2
+	  for (i in rev(players)) {
+	    sg.mat = sg.matrix(i,spi)
+	    weak.dom = sapply(eq.rows, function(eq.row) {
+	      is.sg.strat.weakly.dominated(sp = speu$sp[eq.row],player=i,speu=speu, sg.mat=sg.mat,  spi=spi)
+	    })
+	    eq.rows = eq.rows[!weak.dom]
+	  }
+	}
+
+
 	# only keep equilibria
-	speu = speu[speu$is_eq,,drop=FALSE]
+	speu = speu[eq.rows,,drop=FALSE]
+
 
 
 	# add outcomes and store them in a list .outcomes
@@ -552,6 +633,32 @@ solve.sg.spe.given.remove = function(.sg.ind=1, tg, remove.outcomes=NULL, child.
 	nlist(speq.df = speq, eqo.df)
 }
 
+
+is.sg.strat.weakly.dominated = function(s.i=sp.to.s.i(player,sp,spi), player,speu,spi, sp=NULL, sg.mat = sg.matrix(player=player, spi=spi)) {
+  restore.point("is.sg.strat.weakly.dominated")
+
+  speu.row = match(sg.mat, speu$sp)
+  speu.mat = sg.mat
+  speu.mat[] = speu[[paste0("Eutil_", player)]][speu.row]
+
+  ceu.mat = matrix(speu.mat[s.i,],NROW(speu.mat), NCOL(speu.mat), byrow=TRUE)
+
+  # Payoffs of chosen strategy
+  # minus payoff of alternative strategies
+  diff = ceu.mat - speu.mat
+
+  maxs = rowMaxs(diff)
+  mins = rowMins(diff)
+
+  # If maxs <= 0 the chosen strategy is never better
+  # if mins < 0 it is sometimes worse
+  # Both conditions mean the strategy is weakly
+  # dominated
+  if (any(maxs<=0 & mins<0))
+    return(TRUE)
+
+  return(FALSE)
+}
 
 # the largest subgame for a game that
 # starts with a move of nature

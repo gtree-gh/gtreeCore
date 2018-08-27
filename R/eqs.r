@@ -9,13 +9,13 @@
 #' @param add.eq.ind Shall the index of the equilibrium added to the key table? Default TRUE if combine is TRUE, otherwise FALSE.
 #' @param reduce.tables (default = TRUE). Shall we try to reduce the rows and columns of the key tables be reduced to get a subset of neccessary keys that perfectly predict the chosen value of an action?
 #' @param keep.keys relevant if reduce.tables=TRUE. A character vector of columns that will always be kept as keys and not be reduced. May be helpful when merging or comparing equilibria.
-#' @param ignore.keys relevent if reduce.tables=FALSE. A character vector of variables that will always be removed from the key variables, without any check whether they are neccessary or not. By default all parameters of tg are removed, since they are always constant and would only unneccessarily bloat the table.
+#' @param ignore.keys A character vector of variables that will always be removed from the key variables, without any check whether they are neccessary or not. By default all parameters of tg are removed, since they are always constant and would only unneccessarily bloat the table.
 #' @export
 eq.li.tables = function(eq.li, tg,combine=FALSE, add.eq.ind = combine, reduce.tables = TRUE, keep.keys=NULL,ignore.keys = names(tg$params)) {
   restore.point("eq.li.tables")
 
   res = lapply(seq_along(eq.li), function(eq.ind) {
-    eq.tables(eq.li[[eq.ind]],tg=tg, ignore.keys = ignore.keys, reduce.tables=reduce.tables, eq.ind = if (add.eq.ind) eq.ind)
+    eq.tables(eq.li[[eq.ind]],tg=tg, keep.keys=keep.keys, ignore.keys = ignore.keys, reduce.tables=reduce.tables, eq.ind = if (add.eq.ind) eq.ind)
   })
   if (combine) {
     if (length(res)==0) return(NULL)
@@ -42,11 +42,13 @@ eq.li.tables = function(eq.li, tg,combine=FALSE, add.eq.ind = combine, reduce.ta
 #' @param tg the game in table form
 #' @param reduce.tables (default = TRUE). Shall we try to reduce the rows and columns of the key tables be reduced to get a subset of neccessary keys that perfectly predict the chosen value of an action?
 #' @param keep.keys relevant if reduce.tables=TRUE. A character vector of columns that will always be kept as keys and not be reduced. May be helpful when merging or comparing equilibria.
-#' @param ignore.keys relevent if reduce.tables=FALSE. A character vector of variables that will always be removed from the key variables, without any check whether they are neccessary or not. By default all parameters of tg are removed, since they are always constant and would only unneccessarily bloat the table.
+#' @param ignore.keys A character vector of variables that will always be removed from the key variables, without any check whether they are neccessary or not. By default all parameters of tg are removed, since they are always constant and would only unneccessarily bloat the table.
 #' @param eq.ind An index of the equilibrium that shall be added to the key table. If NULL (default) no column will be added.
 #' @export
 eq.tables = function(eq, tg,  reduce.tables=TRUE, keep.keys=NULL, ignore.keys = names(tg$params), eq.ind = NULL) {
   restore.point("eq.tables")
+
+  all.keep.keys = keep.keys
   ise.df = tg$ise.df
   stage.df = tg$stage.df
   lev.actions = sapply(tg$action.levels, function(lev.num) tg$lev.li[[lev.num]]$var)
@@ -54,6 +56,9 @@ eq.tables = function(eq, tg,  reduce.tables=TRUE, keep.keys=NULL, ignore.keys = 
   tr = lapply(tg$action.levels, function(lev.num) {
     lev = tg$lev.li[[lev.num]]
     action = lev$var
+    if (is.list(all.keep.keys))
+      keep.keys = all.keep.keys[[action]]
+
 
     oco.rows = which(eq[,action] == 1)
     lev.rows = unique(stage.df[[paste0(".row.", lev.num)]][oco.rows])
@@ -202,6 +207,7 @@ eq.li.outcomes = function(eq.li,  tg=NULL, compress=TRUE, combine=TRUE,cond=NULL
 #' @export
 eq.outcome = function(eq,tg=NULL, cond=NULL, oco.df=tg$oco.df) {
   restore.point("eq.outcome")
+  if (is.null(oco.df)) stop("You must provide a table-form game tg.")
   if (!is.null(cond)) return(cond.eq.outcome(eq, cond, oco.df, tg))
   oco.rows = eq[,".prob"] > 0
   eo.df = oco.df[oco.rows,]
@@ -413,15 +419,21 @@ cond.eq.outcome = function(eq, cond, tg=NULL, oco.df=tg$oco.df, eq.ind = first.n
 #'        shall never be removed.
 #' @export
 reduce.key.table = function(table, var=colnames(table)[NCOL(table)], keep.keys=NULL) {
-  if (NROW(table)<=1) return(table)
+  restore.point("reduce.key.table")
+
+  if (NROW(table)<1) return(table)
 
   # All variables have the same number
   if (n_distinct(table[[var]])==1) {
-    return(table[1,var])
+    if (length(keep.keys)==0) {
+      return(table[1,var])
+    } else {
+      return(unique(table[,c(keep.keys,var)]))
+    }
   }
 
   keys = setdiff(colnames(table), var)
-  if (length(keys)<=1) return(table)
+  if (length(keys)<=1) return(unique(table))
 
 
   keep.keys = intersect(keep.keys, keys)
@@ -474,9 +486,11 @@ is.perfect.predictor = function(x,y, df = as_data_frame(list(x=x,y=y))) {
 
 # Is x a perfect predictor for y
 # Every value of x must have the same value y
-is.multi.perfect.predictor = function(xcols,ycol,df, sep="|°") {
-  x = paste0(df[,xcols], sep=sep)
-  is.perfect.predictor(x=x, y=df[[y]])
+is.multi.perfect.predictor = function(xcols,ycol,df, sep="§") {
+  restore.point("is.multi.perfect.predictor")
+
+  x = paste.matrix.cols(df,xcols,sep = sep)
+  is.perfect.predictor(x=x, y=df[[ycol]])
 }
 
 
