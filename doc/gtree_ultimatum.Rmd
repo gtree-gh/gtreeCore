@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
 library(gtreeCore)
 ```
 
@@ -70,7 +70,7 @@ vg
 Note that the abbreviation `vg` stands for `variant game`. If you use the GUI, you can also specify different variants of a game in a single game tree that may differ by their parameters, or other elements. A variant game is the distilled game tree for one particular variant. In the R interface, we will always directly specify games for single variants.
 
 
-## Table-form representation and solving for equilibria
+## Table-form representation and Gambit extensive form file
 
 Before we can solve for equilibria of a game, we have to create a table-form representation of the game using the function `vg.to.tg`.
 
@@ -85,6 +85,15 @@ We can get some basic information about the extensive form representation by pri
 ```{r}
 tg
 ```
+
+```{r comment=""}
+efg.code = tg.to.efg(tg, file=NULL)
+cat(efg.code)
+```
+
+
+## Solving for equilibria
+
 The following code solves for all pure strategy subgame perfect equilibria (SPE) of the game using the internal gtree solver.
 ```{r}
 eq.li = gtree.solve.spe(tg)
@@ -108,7 +117,73 @@ We see that in the first equilibrium, an offer of 0 is rejected, while all other
 ## Change utility function
 
 ```{r}
-set.tg.util(tg, util.funs = ineqAvUtil())
+util.funs = ineqAvUtil(player = 1:2,alpha = 1, beta=0.5)
+set.tg.util(tg, util.funs)
+eq.li = gtree.solve.spe(tg)
+eq.li.tables(eq.li,tg)
+```
+
+```{r}
+util.funs = ineqAvUtil(player = 1:2,alpha = 0.4, beta=1.1)
+set.tg.util(tg, util.funs)
+eq.li = gtree.solve.spe(tg)
+eq.li.tables(eq.li,tg)
+```
+
+
+## Moves of Nature
+
+```{r}
+library(gtreeCore)
+vg = new.vg(
+  gameId = "UltimatumGame",
+  params = list(numPlayers=2, cake=4),
+  stages = list(
+    stage("autoAcceptStage",
+      nature=list(
+        natureMove("autoAccept", c(FALSE,TRUE),probs = c(0.7,0.3))
+      )
+    ),
+    stage("proposerStage",
+      player=1,
+      actions = list(
+        action("offer",~0:cake)
+      )
+    ),
+    stage("responderStage",
+      player=2,
+      observe = "offer",
+      actions = list(
+        action("accept",c(FALSE,TRUE))
+      )
+    ),
+    stage("PayoffStage",
+      player=1:2,
+      compute=list(
+        payoff_1 ~ ifelse(accept | autoAccept, cake-offer,0),
+        payoff_2 ~ ifelse(accept | autoAccept, offer,0)
+      )
+    )
+  )
+)
+```
+![ug_auto_accept.svg](ug_auto_accept.svg)
+
+Since autoAccept is drawn at the beginning of the game and not observed 
+by anybody, we only have a single subgame.
+```{r}
+tg = vg.to.tg(vg)
+tg
+efg = tg.to.efg(tg,file = NULL)
+```
+
+```{r}
+eq.li = gtree.solve.spe(tg)
+length(eq.li)
+```
+
+```{r}
+eq.tables(eq.li[[29]],tg)
 ```
 
 

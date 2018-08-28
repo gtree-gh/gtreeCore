@@ -63,7 +63,7 @@ set.tg.util = function(tg,util.funs=payoffUtil(1:tg$params$numPlayers), symmetri
 }
 
 
-tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.funs = NULL, verbose=TRUE) {
+tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = paste0(tg$tg.id,".efg"), verbose=TRUE) {
   restore.point("tg2efg")
 
   oco.df = tg$oco.df
@@ -73,9 +73,6 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
   if (!is.null(util.funs)) {
   	set.tg.util(tg,util.funs)
   }
-
-  if (is.null(file))
-  	file = paste0(tg$tg.id,".efg")
 
 
   # make txt for all terminal nodes
@@ -137,7 +134,7 @@ tg.to.efg = function(tg, path=get.efg.dir(gameId=tg$gameId), file = NULL, util.f
       display("Written to ", path,"/", file )
     return(invisible(file.path(path, file)))
   } else {
-    return( invisible(txt))
+    return(txt)
   }
 
 }
