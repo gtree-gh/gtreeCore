@@ -70,7 +70,7 @@ vg
 Note that the abbreviation `vg` stands for `variant game`. If you use the GUI, you can also specify different variants of a game in a single game tree that may differ by their parameters, or other elements. A variant game is the distilled game tree for one particular variant. In the R interface, we will always directly specify games for single variants.
 
 
-## Table-form representation and Gambit extensive form file
+## Table-form representation
 
 Before we can solve for equilibria of a game, we have to create a table-form representation of the game using the function `vg.to.tg`.
 
@@ -81,16 +81,22 @@ tg = vg.to.tg(vg)
 Briefly spoken a table form game describes the extensive form of the game using several data frames. While this representation uses more memory than common tree representations like nested lists or linked lists, it benefits from R's ability (strongly enhanced by the `dplyr` and `data.table` packages) to quickly manipulate tabular data.
 A detailed explanation of the internal structure of the different game representations is given in another vignette. 
 
+The game tree of our ultimatum game looks as following:
+![ug.svg](ug.svg)
+```{r include=FALSE}
+tg.to.efg(tg, path=getwd())
+```
+(To generate such a graphical representation of the game tree, use the function `tg.to.efg` to export the game to Gambit's extensive form game format and open the file with the [Gambit GUI](http://www.gambit-project.org/).)
+
 We can get some basic information about the extensive form representation by printing the `tg` variable.
 ```{r}
 tg
 ```
+We see that there are 10 possible outcomes, i.e. terminal nodes of the game tree. Player 1 has a single information set, and player 2 has 5 information sets (one for each possible observed offer).
 
-```{r comment=""}
-efg.code = tg.to.efg(tg, file=NULL)
-cat(efg.code)
-```
+Recall that a pure strategy for player i, specifies a move for each of the players information set. While player 1 has thus only 5 different pure strategies, player 2 has 2^5=32 pure strategies. A pure strategy of player 2 specifies for each of the 5 possible offers whether to accept or reject. Hence, we have a total 5*32=160 pure strategy profiles in this small ultimatum game.
 
+This game also has 6 different subgames. Solving for subgame perfect equilibria via backward induction, we effectively only have to look at 15 different strategy profiles. 
 
 ## Solving for equilibria
 
@@ -114,8 +120,25 @@ eq.li.tables(eq.li, tg=tg)
 ```
 We see that in the first equilibrium, an offer of 0 is rejected, while all other offers are accepted. Correspondingly, the equilibrium offer is 1. In the second, equilibrium all offers are accepted and the equilibrium offer is thus 0.
 
-## Change utility function
+## Setting different utility functions
 
+So far we assumed that the specified payoffs `payoff_1` and `payoff_2` are equal to players' utility. One motivation for gtree is to conveniently solve games for different specifications of players' preferences that can account e.g. for inequality aversion or loss aversion.
+
+While in principal one could account for different outcome based preferences, by directly adapting the formulas for `payoff_1` and `payoff_2` in the game definition, we prefer a slightly different approach.
+
+In the preferred approach the specified payoffs in the game definition are interpreted as monetary or material payoffs. This means games created by `new.vg` can very closely match the structure of economic experiments, for which we only know the specified monetary payoffs. 
+
+After the game is specified, we can use the function `set.tg.util` to specify a utility function for which we want to find equilibria.
+
+For example, consider the following inequality avversion utility function (Fehr and Schmidt, ????)
+\[
+u_i = \pi_i 
+  - \alpha \frac {1}{n-1}\sum_{j \ne i} \max(\pi_j - \pi_i,0)
+  + \beta \frac {1}{n-1}\sum_{j \ne i} \max(\pi_i - \pi_j,0)
+\]
+where \pi denotes material utilities.
+
+The following code sets this utility function with an envy parameter of $\alpha=1$ and a guilt aversion parameter of $\beta=0.5$ and solves for subgame perfect equilibria:
 ```{r}
 util.funs = ineqAvUtil(player = 1:2,alpha = 1, beta=0.5)
 set.tg.util(tg, util.funs)
@@ -123,12 +146,6 @@ eq.li = gtree.solve.spe(tg)
 eq.li.tables(eq.li,tg)
 ```
 
-```{r}
-util.funs = ineqAvUtil(player = 1:2,alpha = 0.4, beta=1.1)
-set.tg.util(tg, util.funs)
-eq.li = gtree.solve.spe(tg)
-eq.li.tables(eq.li,tg)
-```
 
 
 ## Moves of Nature

@@ -17,7 +17,7 @@ print.gtree_tg = function(tg) {
   cat(paste0("\nTableform game: ", tg$tg.id, " (ca. ", format(object.size(as.list(tg))-object.size(tg$stage.df), units="auto"),")\n"))
   cat(paste0("\n  - ",no.oco, " possible outcomes"))
   cat(paste0("\n  - ", no.ise, " information sets (", paste0(num.ise,collapse=" + "),")"))
-  cat(paste0("\n  - " ,num.all.sp, " normal-form strategy profiles (",paste0(num.strat,collapse=" * "),")"))
+  cat(paste0("\n  - " ,num.all.sp, " pure strategy profiles (",paste0(num.strat,collapse=" * "),")"))
 
   if (is.null(tg$sg.df)) {
     cat(paste0("\n\n  -- Subgames not yet computed ---"))
@@ -27,7 +27,7 @@ print.gtree_tg = function(tg) {
 		no.sp = format(sum(tg$sg.df$.num.strats.without.desc), big.mark=" ",scientific = 9)
 
 		cat(paste0("\n  - ",no.sg, " subgames"))
-		cat(paste0("\n  - ",no.sp, " relevant subgame strategy profiles"))
+		cat(paste0("\n  - ",no.sp, " relevant pure strategy profiles in subgames"))
   }
   cat("\n")
 }
